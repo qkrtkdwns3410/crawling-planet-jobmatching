@@ -1,16 +1,51 @@
+# ==========================================
+# PostgreSQL 데이터베이스 설정
+# ==========================================
 spring:
-  application:
-    name: crawling-planet-jobmatching
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jobplanet
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
-# 잡플래닛 크롤링 설정
-# VM 옵션으로 오버라이드 가능: -Djobplanet.email=xxx -Djobplanet.password=xxx
+# ==========================================
+# 잡플래닛 크롤링 설정 (API 기반)
+# ==========================================
 jobplanet:
-  email: ${JOBPLANET_EMAIL}
-  password: ${JOBPLANET_PASSWORD}
-  login-url: https://www.jobplanet.co.kr/user-session/sign-in?_nav=gb
   base-url: https://www.jobplanet.co.kr
-  # 크롤러 설정
-  crawler:
-    headless: false  # true: 브라우저 숨김, false: 브라우저 표시
-    timeout-seconds: 30
-    implicit-wait-seconds: 10
+  api:
+    # 자동 시작 여부 (true: 앱 시작 시 크롤링 시작)
+    auto-start: false
+    
+    # 인증 토큰 (로그인 후 브라우저 쿠키에서 복사)
+    access-token: ${JOBPLANET_ACCESS_TOKEN:}
+    refresh-token: ${JOBPLANET_REFRESH_TOKEN:}
+    ssr-auth: ***REMOVED***
+    
+    # 크롤링 범위
+    start-company-id: 1
+    end-company-id: 500000
+    
+    # 배치 및 동시성 설정
+    batch-size: 100
+    concurrency: 5
+    
+    # 딜레이 설정 (밀리초)
+    delay-ms: 500
+    retry-delay-ms: 1000
+    max-retries: 3
+
+# ==========================================
+# 로깅 설정
+# ==========================================
+logging:
+  level:
+    com.crawling.planet: DEBUG
+    org.springframework.web.reactive: INFO
+    reactor.netty: WARN
