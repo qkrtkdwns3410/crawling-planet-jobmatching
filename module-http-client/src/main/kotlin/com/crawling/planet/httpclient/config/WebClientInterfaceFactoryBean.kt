@@ -54,3 +54,4 @@ class WebClientInterfaceFactoryBean<T : Any>(
     override fun isSingleton(): Boolean = true
 }
 
+

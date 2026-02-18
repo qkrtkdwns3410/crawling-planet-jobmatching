@@ -1,5 +1,6 @@
 package com.crawling.planet.crawler.config
 
+import com.crawling.planet.crawler.auth.CookieTokenStore
 import io.netty.channel.ChannelOption
 import io.netty.handler.timeout.ReadTimeoutHandler
 import io.netty.handler.timeout.WriteTimeoutHandler
@@ -8,24 +9,26 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
+import org.springframework.web.reactive.function.client.ClientRequest
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction
 import org.springframework.web.reactive.function.client.ExchangeStrategies
 import org.springframework.web.reactive.function.client.WebClient
+import reactor.core.publisher.Mono
 import reactor.netty.http.client.HttpClient
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-/**
- * WebClient 설정
- */
 @Configuration
-class WebClientConfig {
-
+class WebClientConfig(
+    private val cookieTokenStore: CookieTokenStore,
+    private val apiProperties: JobplanetApiProperties
+) {
     companion object {
         private const val BASE_URL = "https://www.jobplanet.co.kr"
         private const val CONNECT_TIMEOUT_MS = 10000
         private const val READ_TIMEOUT_SEC = 30L
         private const val WRITE_TIMEOUT_SEC = 30L
-        private const val MAX_IN_MEMORY_SIZE = 16 * 1024 * 1024 // 16MB
+        private const val MAX_IN_MEMORY_SIZE = 16 * 1024 * 1024
     }
 
     @Bean
@@ -38,7 +41,6 @@ class WebClientConfig {
                 conn.addHandlerLast(WriteTimeoutHandler(WRITE_TIMEOUT_SEC, TimeUnit.SECONDS))
             }
 
-        // 큰 응답을 처리하기 위한 메모리 설정
         val exchangeStrategies = ExchangeStrategies.builder()
             .codecs { configurer ->
                 configurer.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_SIZE)
@@ -49,13 +51,51 @@ class WebClientConfig {
             .baseUrl(BASE_URL)
             .clientConnector(ReactorClientHttpConnector(httpClient))
             .exchangeStrategies(exchangeStrategies)
+            .filter(dynamicCookieFilter())
             .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "ko,en;q=0.9,en-US;q=0.8")
             .defaultHeader("jp-os-type", "web")
-            .defaultHeader(HttpHeaders.USER_AGENT, 
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
+            .defaultHeader(
+                HttpHeaders.USER_AGENT,
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+            )
             .build()
     }
+
+    private fun dynamicCookieFilter(): ExchangeFilterFunction {
+        return ExchangeFilterFunction.ofRequestProcessor { request ->
+            val cookies = buildCookieString()
+            if (cookies.isNotBlank()) {
+                val modified = ClientRequest.from(request)
+                    .header(HttpHeaders.COOKIE, cookies)
+                    .header("jp-ssr-auth", apiProperties.ssrAuth)
+                    .header("sec-ch-ua", "\"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"")
+                    .header("sec-ch-ua-mobile", "?0")
+                    .header("sec-ch-ua-platform", "\"Windows\"")
+                    .header("sec-fetch-dest", "empty")
+                    .header("sec-fetch-mode", "cors")
+                    .header("sec-fetch-site", "same-origin")
+                    .build()
+                Mono.just(modified)
+            } else {
+                Mono.just(request)
+            }
+        }
+    }
+
+    private fun buildCookieString(): String {
+        val cookies = mutableListOf<String>()
+
+        val accessToken = cookieTokenStore.getAccessToken()
+        if (!accessToken.isNullOrBlank()) {
+            cookies.add("access_token=$accessToken")
+        }
+
+        val refreshToken = cookieTokenStore.getRefreshToken()
+        if (!refreshToken.isNullOrBlank()) {
+            cookies.add("refresh_token=$refreshToken")
+        }
+
+        return cookies.joinToString("; ")
+    }
 }
-
-

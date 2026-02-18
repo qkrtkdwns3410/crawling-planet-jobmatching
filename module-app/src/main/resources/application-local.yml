@@ -19,6 +19,11 @@ spring:
 # ==========================================
 jobplanet:
   base-url: https://www.jobplanet.co.kr
+  auth:
+    email: ${JOBPLANET_EMAIL:***REMOVED***}
+    password: ${JOBPLANET_PASSWORD:}
+    headless: true
+    login-timeout-seconds: 30
   api:
     # 자동 시작 여부 (true: 앱 시작 시 크롤링 시작)
     auto-start: false

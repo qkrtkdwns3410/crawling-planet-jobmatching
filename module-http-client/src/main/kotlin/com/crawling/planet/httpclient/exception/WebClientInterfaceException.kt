@@ -8,3 +8,4 @@ class WebClientInterfaceException(
     cause: Throwable? = null
 ) : RuntimeException(message, cause)
 
+

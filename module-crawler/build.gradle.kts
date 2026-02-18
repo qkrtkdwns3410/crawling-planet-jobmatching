@@ -26,6 +26,10 @@ dependencies {
     // Reactor Extra for retry
     implementation("io.projectreactor.addons:reactor-extra:3.5.2")
 
+    // Selenium (로그인 자동화)
+    implementation("org.seleniumhq.selenium:selenium-java:4.27.0")
+    implementation("io.github.bonigarcia:webdrivermanager:5.9.2")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
 }

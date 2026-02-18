@@ -24,6 +24,7 @@ class ReviewDataService(
 ) {
     companion object {
         private val DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        private const val MAX_REVIEWS_PER_COMPANY = 3
     }
 
     /**
@@ -109,8 +110,14 @@ class ReviewDataService(
             return Pair(SaveResult(0, 0, 0), null)
         }
 
-        // 2. 리뷰 데이터 추출 및 저장
-        val reviews = extractReviews(items)
+        val existingReviewCount = reviewRepository.countByCompanyId(company.id)
+        if (existingReviewCount >= MAX_REVIEWS_PER_COMPANY) {
+            logger.debug { "이미 리뷰 ${existingReviewCount}개 존재 - companyId: $companyId, 스킵" }
+            return Pair(SaveResult(companySaved, 0, 0), company)
+        }
+
+        val remainingSlots = (MAX_REVIEWS_PER_COMPANY - existingReviewCount).toInt()
+        val reviews = extractReviews(items).take(remainingSlots)
         for (reviewDto in reviews) {
             try {
                 val reviewId = reviewDto.id ?: continue
@@ -146,11 +153,12 @@ class ReviewDataService(
      */
     private fun extractReviews(items: List<JobplanetItem>): List<JobplanetReview> {
         return items
-            .filter { 
-                it.type == JobplanetItemType.COMPANY_REVIEW || 
-                it.type == JobplanetItemType.COMPANY_BLINDED_REVIEW 
+            .filter {
+                it.type == JobplanetItemType.COMPANY_REVIEW ||
+                it.type == JobplanetItemType.COMPANY_BLINDED_REVIEW
             }
             .mapNotNull { it.review }
+            .take(MAX_REVIEWS_PER_COMPANY)
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.crawling.planet.app.controller
 
+import com.crawling.planet.crawler.auth.JobplanetLoginService
 import com.crawling.planet.crawler.service.JobplanetCrawlingService
 import com.crawling.planet.crawler.service.ReviewDataService
 import com.crawling.planet.domain.repository.CompanyRepository
@@ -11,15 +12,13 @@ import reactor.core.publisher.Mono
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * 크롤링 제어 및 상태 확인 API
- */
 @RestController
 @RequestMapping("/api/crawling")
 class CrawlingController(
     private val crawlingService: JobplanetCrawlingService,
     private val companyRepository: CompanyRepository,
-    private val reviewRepository: ReviewRepository
+    private val reviewRepository: ReviewRepository,
+    private val loginService: JobplanetLoginService
 ) {
     /**
      * 크롤링 상태 조회
@@ -45,7 +44,9 @@ class CrawlingController(
         @PathVariable companyId: Long
     ): ResponseEntity<CrawlResponse> {
         logger.info { "단일 회사 크롤링 요청 - companyId: $companyId" }
-        
+
+        loginService.loginIfNeeded()
+
         val result = crawlingService.crawlSingleCompany(companyId)
         
         return if (result != null) {
@@ -80,7 +81,9 @@ class CrawlingController(
         @RequestParam endId: Long
     ): Mono<ResponseEntity<CrawlRangeResponse>> {
         logger.info { "범위 크롤링 요청 - $startId ~ $endId" }
-        
+
+        loginService.loginIfNeeded()
+
         return crawlingService.crawlRange(startId, endId)
             .map { result ->
                 ResponseEntity.ok(
@@ -102,8 +105,9 @@ class CrawlingController(
     @PostMapping("/start")
     fun startFullCrawling(): ResponseEntity<Map<String, String>> {
         logger.info { "전체 크롤링 시작 요청" }
-        
-        // 백그라운드에서 실행
+
+        loginService.loginIfNeeded()
+
         crawlingService.startCrawling()
             .subscribe(
                 { result ->
@@ -145,5 +149,6 @@ class CrawlingController(
         val failedCompanies: Long
     )
 }
+
 
 

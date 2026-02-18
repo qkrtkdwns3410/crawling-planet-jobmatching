@@ -26,3 +26,4 @@ interface CrawlingErrorLogRepository : JpaRepository<CrawlingErrorLog, Long> {
 }
 
 
+

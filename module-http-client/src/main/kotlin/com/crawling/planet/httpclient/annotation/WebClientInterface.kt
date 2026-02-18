@@ -31,3 +31,4 @@ annotation class WebClientInterface(
     val fallback: KClass<*> = Unit::class
 )
 
+

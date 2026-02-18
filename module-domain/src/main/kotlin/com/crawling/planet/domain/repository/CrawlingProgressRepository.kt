@@ -26,3 +26,4 @@ interface CrawlingProgressRepository : JpaRepository<CrawlingProgress, Long> {
 }
 
 
+
