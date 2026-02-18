@@ -1,9 +1,10 @@
 package com.crawling.planet.crawler.service
 
+import com.crawling.planet.crawler.auth.JobplanetLoginService
 import com.crawling.planet.crawler.config.JobplanetApiProperties
-import com.crawling.planet.domain.dto.JobplanetApiResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -12,14 +13,12 @@ import java.util.concurrent.atomic.AtomicLong
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * 잡플래닛 크롤링 조율 서비스
- */
 @Service
 class JobplanetCrawlingService(
     private val jobplanetApiService: JobplanetApiService,
     private val reviewDataService: ReviewDataService,
-    private val apiProperties: JobplanetApiProperties
+    private val apiProperties: JobplanetApiProperties,
+    private val loginService: JobplanetLoginService
 ) {
     /**
      * 전체 크롤링 실행 (비동기)
@@ -90,18 +89,24 @@ class JobplanetCrawlingService(
             }
     }
 
-    /**
-     * 특정 회사 크롤링
-     */
     fun crawlCompany(companyId: Long): Mono<ReviewDataService.SaveResult?> {
-        return jobplanetApiService.getAllCompanyReviews(companyId)
-            .collectList()
-            .filter { it.isNotEmpty() }
+        return jobplanetApiService.getCompanyReviews(companyId, 1)
             .publishOn(Schedulers.boundedElastic())
-            .map { responses ->
-                reviewDataService.saveFromApiResponses(companyId, responses)
+            .map { response ->
+                reviewDataService.saveFromApiResponse(companyId, response)
             }
             .onErrorResume { error ->
+                if (error is WebClientResponseException && error.statusCode.value() == 401) {
+                    logger.warn { "401 인증 만료 - 토큰 갱신 후 재시도 (companyId: $companyId)" }
+                    return@onErrorResume Mono.fromCallable { loginService.login() }
+                        .then(jobplanetApiService.getCompanyReviews(companyId, 1))
+                        .publishOn(Schedulers.boundedElastic())
+                        .map { response -> reviewDataService.saveFromApiResponse(companyId, response) }
+                        .onErrorResume { retryError ->
+                            logger.error { "토큰 갱신 후에도 실패 - companyId: $companyId, error: ${retryError.message}" }
+                            Mono.empty()
+                        }
+                }
                 logger.warn { "회사 크롤링 실패 - companyId: $companyId, error: ${error.message}" }
                 Mono.empty()
             }
@@ -164,5 +169,6 @@ class JobplanetCrawlingService(
         val failedCompanies: Long
     )
 }
+
 
 
