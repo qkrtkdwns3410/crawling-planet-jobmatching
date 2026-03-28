@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = "http://localhost:8080";
+const DEFAULT_API_BASE = "http://localhost:8081";
 
 async function getApiBase() {
   const result = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });

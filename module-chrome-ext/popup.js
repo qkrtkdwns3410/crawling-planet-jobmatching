@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = "http://localhost:8080";
+const DEFAULT_API_BASE = "http://localhost:8081";
 
 const apiUrlInput = document.getElementById("apiUrl");
 const saveBtn = document.getElementById("saveBtn");

@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "description": "View Jobplanet company reviews on JobKorea",
   "permissions": ["activeTab", "storage"],
-  "host_permissions": ["https://www.jobkorea.co.kr/*", "http://localhost:8080/*"],
+  "host_permissions": ["https://www.jobkorea.co.kr/*", "https://m.jobkorea.co.kr/*", "http://localhost:8080/*", "http://localhost:8081/*"],
   "content_scripts": [
     {
-      "matches": ["https://www.jobkorea.co.kr/*"],
+      "matches": ["https://www.jobkorea.co.kr/*", "https://m.jobkorea.co.kr/*"],
       "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"

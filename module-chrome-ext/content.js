@@ -1,9 +1,22 @@
 (function () {
   "use strict";
 
-  const COMPANY_SELECTORS = [".coName", ".name a[href*='/Corp/']", "a[href*='/Corp/']", ".company-name"];
+  const COMPANY_SELECTORS = [
+    // 잡코리아 채용공고 목록
+    "a.company-link",
+    // 잡코리아 기존 셀렉터
+    ".coName",
+    ".name a[href*='/Corp/']",
+    "a[href*='/Corp/']",
+    "a[href*='/Co_Read/']",
+    // 잡코리아 채용 상세
+    ".company-name",
+    ".corp-name a",
+  ];
+
   const reviewCache = new Map();
   let activeDropdown = null;
+  let processTimer = null;
 
   function init() {
     processCompanyElements();
@@ -20,7 +33,9 @@
         }
       }
       if (shouldProcess) {
-        processCompanyElements();
+        // 디바운스: DOM 변경이 연속으로 발생할 때 한 번만 처리
+        clearTimeout(processTimer);
+        processTimer = setTimeout(processCompanyElements, 300);
       }
     });
 
@@ -36,7 +51,7 @@
       el.dataset.jpBadgeAttached = "true";
 
       const companyName = extractCompanyName(el);
-      if (!companyName) return;
+      if (!companyName || companyName.length < 2) return;
 
       const badge = createBadge(companyName);
       insertBadgeAfter(el, badge);
@@ -47,6 +62,7 @@
 
   function extractCompanyName(el) {
     const text = (el.textContent || "").trim();
+    // (주), (유), (사) 등은 유지하되 불필요한 공백 정리
     return text.replace(/\s+/g, " ").substring(0, 100);
   }
 
@@ -94,15 +110,25 @@
   function updateBadge(badge, data) {
     badge.classList.remove("jp-loading");
 
-    if (!data || !data.rating) {
+    if (!data) {
       showNoReviewBadge(badge);
       return;
     }
 
-    const rating = parseFloat(data.rating).toFixed(1);
-    badge.textContent = `${rating} ★`;
-    badge.classList.add("jp-has-reviews");
-    badge.title = `잡플래닛 평점: ${rating}`;
+    // rating이 없어도 리뷰가 있으면 표시
+    if (data.rating) {
+      const rating = parseFloat(data.rating).toFixed(1);
+      badge.textContent = `${rating} ★`;
+      badge.classList.add("jp-has-reviews");
+      badge.title = `잡플래닛 평점: ${rating} (리뷰 ${data.reviewCount || 0}개)`;
+    } else if (data.reviews && data.reviews.length > 0) {
+      badge.textContent = `리뷰 ${data.reviewCount || data.reviews.length}개`;
+      badge.classList.add("jp-has-reviews");
+      badge.title = "클릭하여 잡플래닛 리뷰 보기";
+    } else {
+      showNoReviewBadge(badge);
+      return;
+    }
 
     badge.addEventListener("click", (e) => {
       e.preventDefault();
@@ -174,7 +200,8 @@
 
     const ratingStr = data.rating ? parseFloat(data.rating).toFixed(1) : "-";
     const industryStr = data.industry || "";
-    metaEl.innerHTML = `<span class="jp-rating-large">${ratingStr} ★</span>${industryStr ? ` · <span>${industryStr}</span>` : ""}`;
+    const reviewCountStr = data.reviewCount ? ` · 리뷰 ${data.reviewCount}개` : "";
+    metaEl.innerHTML = `<span class="jp-rating-large">${ratingStr} ★</span>${industryStr ? ` · <span>${industryStr}</span>` : ""}${reviewCountStr}`;
 
     companyInfo.appendChild(nameEl);
     companyInfo.appendChild(metaEl);
@@ -211,7 +238,16 @@
 
     const footer = document.createElement("div");
     footer.className = "jp-dropdown-footer";
-    footer.innerHTML = '<span class="jp-powered-by">Powered by 잡플래닛</span>';
+    if (data.jobplanetId) {
+      const link = document.createElement("a");
+      link.href = `https://www.jobplanet.co.kr/companies/${data.jobplanetId}/reviews/`;
+      link.target = "_blank";
+      link.className = "jp-view-all-link";
+      link.textContent = "잡플래닛에서 전체 리뷰 보기 →";
+      footer.appendChild(link);
+    } else {
+      footer.innerHTML = '<span class="jp-powered-by">Powered by 잡플래닛</span>';
+    }
     dropdown.appendChild(footer);
 
     return dropdown;
@@ -226,6 +262,16 @@
 
     const rating = review.rating ? parseFloat(review.rating).toFixed(1) : "-";
     reviewHeader.innerHTML = `<span class="jp-review-rating">${rating} ★</span>`;
+
+    if (review.occupationName || review.employStatusName) {
+      const meta = document.createElement("span");
+      meta.className = "jp-review-meta";
+      const parts = [];
+      if (review.occupationName) parts.push(review.occupationName);
+      if (review.employStatusName) parts.push(review.employStatusName === "true" || review.employStatusName === true ? "현직" : "전직");
+      meta.textContent = parts.join(" · ");
+      reviewHeader.appendChild(meta);
+    }
 
     if (review.summary || review.title) {
       const title = document.createElement("span");
