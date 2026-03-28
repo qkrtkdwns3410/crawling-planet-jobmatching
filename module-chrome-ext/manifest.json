@@ -3,8 +3,8 @@
   "name": "Jobplanet Review Viewer",
   "version": "1.0.0",
   "description": "View Jobplanet company reviews on JobKorea",
-  "permissions": ["activeTab", "storage"],
-  "host_permissions": ["https://www.jobkorea.co.kr/*", "https://m.jobkorea.co.kr/*", "https://crawling-planet.cc/*", "http://localhost:8081/*"],
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://www.jobkorea.co.kr/*", "https://m.jobkorea.co.kr/*", "https://crawling-planet.cc/*"],
   "content_scripts": [
     {
       "matches": ["https://www.jobkorea.co.kr/*", "https://m.jobkorea.co.kr/*"],

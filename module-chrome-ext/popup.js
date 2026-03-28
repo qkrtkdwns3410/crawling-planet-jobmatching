@@ -1,29 +1,5 @@
-const DEFAULT_API_BASE = "http://localhost:8081";
-
-const apiUrlInput = document.getElementById("apiUrl");
-const saveBtn = document.getElementById("saveBtn");
-const saveMsg = document.getElementById("saveMsg");
 const testBtn = document.getElementById("testBtn");
 const statusEl = document.getElementById("status");
-
-document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE }, (result) => {
-    apiUrlInput.value = result.apiBase;
-  });
-});
-
-saveBtn.addEventListener("click", () => {
-  const url = apiUrlInput.value.trim().replace(/\/+$/, "");
-  if (!url) {
-    apiUrlInput.value = DEFAULT_API_BASE;
-    return;
-  }
-
-  chrome.storage.sync.set({ apiBase: url }, () => {
-    saveMsg.classList.add("show");
-    setTimeout(() => saveMsg.classList.remove("show"), 2000);
-  });
-});
 
 testBtn.addEventListener("click", async () => {
   statusEl.className = "status testing";
