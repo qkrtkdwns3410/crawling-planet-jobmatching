@@ -11,6 +11,10 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+api:
+  security:
+    key: ${API_KEY}
+
 logging:
   level:
     root: WARN
