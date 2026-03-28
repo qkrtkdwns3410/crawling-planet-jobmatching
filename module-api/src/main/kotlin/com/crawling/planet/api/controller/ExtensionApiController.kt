@@ -60,6 +60,7 @@ class ExtensionApiController(
 
     data class CompanyWithReviewsResponse(
         val companyId: Long,
+        val jobplanetId: Long,
         val companyName: String,
         val rating: Double?,
         val industry: String?,
