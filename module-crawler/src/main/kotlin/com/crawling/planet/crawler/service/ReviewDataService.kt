@@ -79,24 +79,29 @@ class ReviewDataService(
             return Pair(SaveResult(0, 0, 0), null)
         }
 
-        val existingReviewCount = reviewRepository.countByCompanyId(company.id)
-        if (existingReviewCount >= MAX_REVIEWS_PER_COMPANY) {
-            logger.debug { "이미 리뷰 ${existingReviewCount}개 존재 - companyId: $companyId, 스킵" }
+        val newReviews = reviews.take(MAX_REVIEWS_PER_COMPANY)
+        val newReviewIds = newReviews.mapNotNull { it.id }.toSet()
+
+        // 기존 리뷰 ID 목록 조회 (가벼운 쿼리)
+        val existingReviews = reviewRepository.findByCompanyId(company.id)
+        val existingReviewIds = existingReviews.map { it.jobplanetReviewId }.toSet()
+
+        // 동일하면 스킵
+        if (newReviewIds == existingReviewIds) {
+            logger.debug { "리뷰 변경 없음 - companyId: $companyId, 스킵" }
             return Pair(SaveResult(companySaved, 0, 0), company)
         }
 
-        val remainingSlots = (MAX_REVIEWS_PER_COMPANY - existingReviewCount).toInt()
-        val reviewsToSave = reviews.take(remainingSlots)
-        for (reviewDto in reviewsToSave) {
+        // 변경 감지 → 기존 삭제 후 새로 삽입
+        if (existingReviews.isNotEmpty()) {
+            reviewRepository.deleteAll(existingReviews)
+            // reviewCount 차감
+            companyRepository.incrementReviewCount(company.id, -existingReviews.size)
+        }
+
+        for (reviewDto in newReviews) {
             try {
                 val reviewId = reviewDto.id ?: continue
-
-                // 이미 존재하는 리뷰 스킵
-                if (reviewRepository.existsByJobplanetReviewId(reviewId)) {
-                    reviewsSkipped++
-                    continue
-                }
-
                 val review = createReviewEntity(reviewDto, company)
                 reviewRepository.save(review)
                 reviewsSaved++
