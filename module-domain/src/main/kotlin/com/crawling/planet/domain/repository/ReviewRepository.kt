@@ -59,6 +59,9 @@ interface ReviewRepository : JpaRepository<Review, Long> {
      */
     @Query("SELECT r FROM Review r WHERE r.company.jobplanetId = :jobplanetId AND r.status = 3")
     fun findNormalReviewsByCompanyJobplanetId(@Param("jobplanetId") jobplanetId: Long): List<Review>
+
+    fun findTop3ByCompanyIdOrderByReviewCreatedAtDesc(companyId: Long): List<Review>
 }
+
 
 

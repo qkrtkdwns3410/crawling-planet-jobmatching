@@ -27,9 +27,8 @@ enum class ReviewStatus(val code: Int, val description: String) {
     name = "reviews",
     indexes = [
         Index(name = "idx_review_jobplanet_id", columnList = "jobplanetReviewId", unique = true),
-        Index(name = "idx_review_company_id", columnList = "company_id"),
-        Index(name = "idx_review_status", columnList = "status"),
-        Index(name = "idx_review_created_at", columnList = "reviewCreatedAt")
+        Index(name = "idx_review_company_id_created_at", columnList = "company_id, reviewCreatedAt DESC"),
+        Index(name = "idx_review_company_id_status", columnList = "company_id, status")
     ]
 )
 class Review(
@@ -191,5 +190,6 @@ class Review(
         return "Review(id=$id, jobplanetReviewId=$jobplanetReviewId, status=$status, rating=$rating)"
     }
 }
+
 
 

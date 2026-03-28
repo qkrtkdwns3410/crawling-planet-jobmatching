@@ -1,5 +1,6 @@
 package com.crawling.planet.crawler.runner
 
+import com.crawling.planet.crawler.auth.JobplanetLoginService
 import com.crawling.planet.crawler.config.JobplanetApiProperties
 import com.crawling.planet.crawler.service.JobplanetCrawlingService
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -12,11 +13,6 @@ import java.time.LocalDateTime
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * 애플리케이션 시작 시 API 기반 크롤러 실행
- * 
- * 활성화 조건: jobplanet.api.auto-start=true
- */
 @Component
 @ConditionalOnProperty(
     prefix = "jobplanet.api",
@@ -26,7 +22,8 @@ private val logger = KotlinLogging.logger {}
 )
 class CrawlerRunner(
     private val crawlingService: JobplanetCrawlingService,
-    private val apiProperties: JobplanetApiProperties
+    private val apiProperties: JobplanetApiProperties,
+    private val loginService: JobplanetLoginService
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -41,7 +38,9 @@ class CrawlerRunner(
         logger.info { "=".repeat(60) }
 
         try {
-            // 비동기 크롤링 실행 및 완료 대기
+            loginService.loginIfNeeded()
+            logger.info { "로그인 완료, 크롤링을 시작합니다" }
+
             val result = crawlingService.startCrawling().block()
 
             val endTime = LocalDateTime.now()

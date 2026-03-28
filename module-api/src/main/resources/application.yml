@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: crawling-planet-api
+
+  # 프로필 설정
+  profiles:
+    active: local
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+server:
+  port: 8081
+
+# 로깅 설정
+logging:
+  level:
+    root: INFO
+    com.crawling.planet: DEBUG

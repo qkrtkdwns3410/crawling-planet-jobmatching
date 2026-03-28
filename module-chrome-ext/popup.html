@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobplanet Review Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fafafa;
+      color: #333;
+    }
+
+    .header {
+      background: #00c362;
+      color: #fff;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .header p {
+      font-size: 11px;
+      opacity: 0.85;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+
+    .field-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .field-group input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .field-group input:focus {
+      border-color: #00c362;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: #00c362;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #00a854;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #555;
+      margin-top: 8px;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+      display: none;
+    }
+
+    .status.connected {
+      display: block;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status.disconnected {
+      display: block;
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .status.testing {
+      display: block;
+      background: #fff8e1;
+      color: #f57f17;
+    }
+
+    .save-msg {
+      margin-top: 8px;
+      font-size: 11px;
+      text-align: center;
+      color: #00c362;
+      display: none;
+    }
+
+    .save-msg.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Jobplanet Review Viewer</h1>
+    <p>잡코리아에서 잡플래닛 리뷰를 확인하세요</p>
+  </div>
+  <div class="content">
+    <div class="field-group">
+      <label for="apiUrl">API 서버 URL</label>
+      <input type="url" id="apiUrl" placeholder="http://localhost:8080">
+    </div>
+    <button id="saveBtn" class="btn btn-primary">저장</button>
+    <div id="saveMsg" class="save-msg">설정이 저장되었습니다.</div>
+    <button id="testBtn" class="btn btn-secondary">연결 테스트</button>
+    <div id="status" class="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

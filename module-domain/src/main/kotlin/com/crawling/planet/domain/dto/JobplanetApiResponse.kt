@@ -82,76 +82,58 @@ data class JobplanetItem(
 data class JobplanetReview(
     val id: Long?,
     val status: Int?,
-    
+
     @JsonProperty("occupation_name")
     val occupationName: String?,
-    
+
     @JsonProperty("employ_status_name")
-    val employStatusName: Any?, // Boolean 또는 String
-    
-    @JsonProperty("employ_type_name")
-    val employTypeName: String?,
-    
-    val rating: Double?,
-    
-    @JsonProperty("growth_rate")
-    val growthRate: Double?,
-    
-    @JsonProperty("leadership_rate")
-    val leadershipRate: Double?,
-    
-    @JsonProperty("reward_rate")
-    val rewardRate: Double?,
-    
-    @JsonProperty("culture_rate")
-    val cultureRate: Double?,
-    
-    @JsonProperty("balance_rate")
-    val balanceRate: Double?,
-    
-    val summary: String?,
+    val employStatusName: Any?,
+
+    val overall: Int?,
+    val score: JobplanetReviewScore?,
+    val title: String?,
     val pros: String?,
     val cons: String?,
-    
-    @JsonProperty("to_management")
-    val toManagement: String?,
-    
-    @JsonProperty("like_count")
-    val likeCount: Int?,
-    
-    @JsonProperty("created_at")
-    val createdAt: String?,
-    
-    @JsonProperty("updated_at")
-    val updatedAt: String?,
-    
-    @JsonProperty("review_year")
-    val reviewYear: String?,
-    
-    @JsonProperty("company_id")
-    val companyId: Long?,
-    
-    @JsonProperty("company_name")
-    val companyName: String?,
-    
-    @JsonProperty("company_logo")
-    val companyLogo: String?,
-    
-    // 추가 필드들
+
+    @JsonProperty("message_to_management")
+    val messageToManagement: String?,
+
+    @JsonProperty("helpful_count")
+    val helpfulCount: Int?,
+
+    val date: String?,
+
+    @JsonProperty("last_year_at_employer")
+    val lastYearAtEmployer: Int?,
+
+    @JsonProperty("recommend_to_friend")
+    val recommendToFriend: Boolean?,
+
     @JsonProperty("is_blinded")
-    val isBlinded: Boolean?,
-    
-    @JsonProperty("is_verified")
-    val isVerified: Boolean?,
-    
-    @JsonProperty("is_certified")
-    val isCertified: Boolean?,
-    
-    @JsonProperty("can_report")
-    val canReport: Boolean?,
-    
-    @JsonProperty("is_reported")
-    val isReported: Boolean?
+    val isBlinded: Boolean?
+)
+
+/**
+ * 리뷰 점수 상세
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class JobplanetReviewScore(
+    val overall: Int?,
+
+    @JsonProperty("advancement_rating")
+    val advancementRating: Int?,
+
+    @JsonProperty("compensation_rating")
+    val compensationRating: Int?,
+
+    @JsonProperty("worklife_balance_rating")
+    val worklifeBalanceRating: Int?,
+
+    @JsonProperty("culture_rating")
+    val cultureRating: Int?,
+
+    @JsonProperty("management_rating")
+    val managementRating: Int?
 )
 
 /**
@@ -214,5 +196,6 @@ object JobplanetReviewStatus {
     const val NORMAL = 3
     const val BLINDED = 12
 }
+
 
 
