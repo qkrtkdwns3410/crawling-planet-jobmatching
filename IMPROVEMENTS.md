@@ -21,6 +21,36 @@
 
 ---
 
+## [2026-03-29] 보안 — CRITICAL 이슈 2건 수정
+
+### 문제 1: API Key 서버 측 검증 없음
+익스텐션 API(`/api/ext/*`)가 Nginx에서만 API Key를 검증하고, Spring 애플리케이션 자체에는 인증이 없었음. Nginx를 우회하여 8081 포트로 직접 접근하면 인증 없이 API 호출 가능.
+
+### 문제 2: 크롤링 API 인증 없음
+크롤링 관리 엔드포인트(`POST /api/crawling/*`)에 인증이 전혀 없었음. Security Group + Nginx IP 제한에만 의존하는 단일 방어층 구조.
+
+### 해결
+- **module-api**: `ApiKeyFilter` 추가 — `X-API-Key` 헤더를 서버 측에서 검증. OPTIONS preflight는 통과, 키 미일치 시 403 반환. 키는 환경변수(`API_KEY`)로 관리.
+- **module-app**: `CrawlingAuthFilter` 추가 — POST 요청에 `Authorization: Bearer {token}` 필수. GET `/status`는 인증 없이 허용. 토큰은 환경변수(`CRAWLING_ADMIN_TOKEN`)로 관리.
+
+### 결과
+
+| 테스트 | 결과 |
+|--------|------|
+| API Key 없이 `/api/ext/*` 직접 호출 | 403 차단 |
+| API Key 포함 호출 | 200 통과 |
+| 토큰 없이 크롤링 POST | 403 차단 |
+| 토큰 포함 크롤링 POST | 인증 통과 |
+| GET `/status` (인증 불필요) | 200 통과 |
+
+### 변경 파일
+- `module-api/.../config/ApiKeyFilter.kt` — 신규
+- `module-app/.../config/CrawlingAuthFilter.kt` — 신규
+- `module-api/src/main/resources/application-prod.yml` — `api.security.key` 추가
+- `module-app/src/main/resources/application-prod.yml` — `crawling.admin.token` 추가
+
+---
+
 ## [2026-03-29] DB 쿼리 성능 최적화 — pg_trgm GIN 인덱스 활용
 
 ### 문제
