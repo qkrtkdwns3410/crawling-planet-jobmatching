@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE = "http://localhost:8081";
+const DEFAULT_API_BASE = "https://crawling-planet.cc";
+const API_KEY = "***REMOVED***";
 
 async function getApiBase() {
   const result = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });
@@ -24,7 +25,7 @@ async function fetchCompanyReviews(companyName) {
 
     const response = await fetch(url, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "X-API-Key": API_KEY },
     });
 
     if (!response.ok) {

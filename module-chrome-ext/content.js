@@ -75,11 +75,8 @@
   }
 
   function insertBadgeAfter(el, badge) {
-    if (el.nextSibling) {
-      el.parentNode.insertBefore(badge, el.nextSibling);
-    } else {
-      el.parentNode.appendChild(badge);
-    }
+    // 회사명 요소 내부 끝에 삽입 (레이아웃 깨짐 방지)
+    el.appendChild(badge);
   }
 
   async function loadReviewData(companyName, badge) {
@@ -156,14 +153,15 @@
     activeDropdown = dropdown;
 
     setTimeout(() => {
-      document.addEventListener("click", closeDropdownOnOutsideClick, { once: true });
+      document.addEventListener("click", closeDropdownOnOutsideClick);
     }, 0);
   }
 
   function closeDropdownOnOutsideClick(e) {
-    if (activeDropdown && !activeDropdown.contains(e.target)) {
+    if (activeDropdown && !activeDropdown.contains(e.target) && !e.target.closest(".jp-review-badge")) {
       activeDropdown.remove();
       activeDropdown = null;
+      document.removeEventListener("click", closeDropdownOnOutsideClick);
     }
   }
 

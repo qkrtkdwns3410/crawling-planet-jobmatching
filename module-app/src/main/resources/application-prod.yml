@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jobplanet
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+jobplanet:
+  base-url: https://www.jobplanet.co.kr
+  auth:
+    email: ${JOBPLANET_EMAIL}
+    password: ${JOBPLANET_PASSWORD}
+    headless: true
+    login-timeout-seconds: 60
+  api:
+    auto-start: false
+    access-token: ${JOBPLANET_ACCESS_TOKEN:}
+    refresh-token: ${JOBPLANET_REFRESH_TOKEN:}
+    ssr-auth: ***REMOVED***
+    start-company-id: 1
+    end-company-id: 500000
+    batch-size: 100
+    concurrency: 100
+    delay-ms: 50
+    retry-delay-ms: 2000
+    max-retries: 5
+
+logging:
+  level:
+    root: WARN
+    com.crawling.planet: INFO
+    org.springframework.web.reactive: WARN
+    reactor.netty: ERROR
