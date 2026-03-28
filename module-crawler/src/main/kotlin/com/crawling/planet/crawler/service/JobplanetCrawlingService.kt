@@ -20,7 +20,8 @@ class JobplanetCrawlingService(
     private val reviewDataService: ReviewDataService,
     private val apiProperties: JobplanetApiProperties,
     private val loginService: JobplanetLoginService,
-    private val companyRepository: CompanyRepository
+    private val companyRepository: CompanyRepository,
+    private val companyRatingUpdateService: CompanyRatingUpdateService
 ) {
     /**
      * 전체 크롤링 실행 (비동기)
@@ -97,6 +98,11 @@ class JobplanetCrawlingService(
             .map { response ->
                 reviewDataService.saveFromApiResponse(companyId, response)
             }
+            .flatMap { result ->
+                // 리뷰 저장 후 평점/상세 정보도 함께 업데이트
+                companyRatingUpdateService.updateSingleCompanyRating(companyId)
+                    .thenReturn(result)
+            }
             .onErrorResume { error ->
                 if (error is WebClientResponseException && error.statusCode.value() == 401) {
                     logger.warn { "401 인증 만료 - 토큰 갱신 후 재시도 (companyId: $companyId)" }
@@ -104,6 +110,10 @@ class JobplanetCrawlingService(
                         .then(jobplanetApiService.getCompanyReviews(companyId, 1))
                         .publishOn(Schedulers.boundedElastic())
                         .map { response -> reviewDataService.saveFromApiResponse(companyId, response) }
+                        .flatMap { result ->
+                            companyRatingUpdateService.updateSingleCompanyRating(companyId)
+                                .thenReturn(result)
+                        }
                         .onErrorResume { retryError ->
                             logger.error { "토큰 갱신 후에도 실패 - companyId: $companyId, error: ${retryError.message}" }
                             Mono.empty()

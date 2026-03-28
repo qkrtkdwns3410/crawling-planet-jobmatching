@@ -63,6 +63,23 @@ class CompanyRatingUpdateService(
             })
     }
 
+    fun updateSingleCompanyRating(jobplanetId: Long): Mono<Void> {
+        return fetchLandingHeader(jobplanetId)
+            .publishOn(Schedulers.boundedElastic())
+            .doOnNext { header ->
+                companyRepository.findByJobplanetId(jobplanetId).ifPresent { company ->
+                    companyRepository.updateCompanyDetails(
+                        company.id,
+                        header.rateTotalAvg,
+                        header.industryName,
+                        header.logoPath
+                    )
+                }
+            }
+            .then()
+            .onErrorResume { Mono.empty() }
+    }
+
     private fun fetchLandingHeader(jobplanetId: Long): Mono<LandingHeaderData> {
         return jobplanetWebClient.get()
             .uri("/api/v5/companies/$jobplanetId/landing/header")
