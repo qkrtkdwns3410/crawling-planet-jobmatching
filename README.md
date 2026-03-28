@@ -1,5 +1,7 @@
 # Crawling Planet - Jobplanet Review Matching
 
+> **[Release Notes (v1.0.0)](RELEASE.md)** - 2026-03-28
+
 잡코리아 채용 공고에서 잡플래닛 회사 리뷰를 바로 확인할 수 있는 크롤링 시스템 + 크롬 익스텐션 프로젝트
 
 ## 프로젝트 구조
