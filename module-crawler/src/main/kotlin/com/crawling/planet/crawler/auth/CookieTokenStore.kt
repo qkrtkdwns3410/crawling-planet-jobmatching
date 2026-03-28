@@ -10,6 +10,7 @@ private val logger = KotlinLogging.logger {}
 data class TokenPair(
     val accessToken: String,
     val refreshToken: String,
+    val allCookies: Map<String, String> = emptyMap(),
     val obtainedAt: Instant = Instant.now()
 )
 
@@ -23,7 +24,7 @@ class CookieTokenStore {
 
     fun store(tokenPair: TokenPair) {
         tokenRef.set(tokenPair)
-        logger.info { "토큰 저장 완료 (accessToken 길이: ${tokenPair.accessToken.length})" }
+        logger.info { "토큰 저장 완료 (accessToken 길이: ${tokenPair.accessToken.length}, 전체 쿠키: ${tokenPair.allCookies.size}개)" }
     }
 
     fun get(): TokenPair? = tokenRef.get()
@@ -31,6 +32,8 @@ class CookieTokenStore {
     fun getAccessToken(): String? = tokenRef.get()?.accessToken
 
     fun getRefreshToken(): String? = tokenRef.get()?.refreshToken
+
+    fun getAllCookies(): Map<String, String> = tokenRef.get()?.allCookies ?: emptyMap()
 
     fun isExpired(): Boolean {
         val token = tokenRef.get() ?: return true

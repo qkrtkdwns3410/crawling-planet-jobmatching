@@ -26,7 +26,6 @@ class JobplanetLoginService(
             logger.info { "기존 토큰이 유효하여 재사용" }
             return cookieTokenStore.get()!!
         }
-
         return login()
     }
 
@@ -82,9 +81,13 @@ class JobplanetLoginService(
                 throw IllegalStateException("로그인 후 access_token 쿠키를 찾을 수 없습니다. 쿠키 목록: $allCookieNames")
             }
 
+            val allCookieMap = cookies.associate { it.name to it.value }
+            logger.info { "수집된 쿠키 목록: ${allCookieMap.keys}" }
+
             val tokenPair = TokenPair(
                 accessToken = accessToken,
-                refreshToken = refreshToken ?: ""
+                refreshToken = refreshToken ?: "",
+                allCookies = allCookieMap
             )
 
             cookieTokenStore.store(tokenPair)

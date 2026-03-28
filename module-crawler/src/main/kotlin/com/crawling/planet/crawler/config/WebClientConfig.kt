@@ -84,6 +84,12 @@ class WebClientConfig(
     }
 
     private fun buildCookieString(): String {
+        val allCookies = cookieTokenStore.getAllCookies()
+        if (allCookies.isNotEmpty()) {
+            return allCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+        }
+
+        // fallback: 개별 토큰만 있는 경우
         val cookies = mutableListOf<String>()
 
         val accessToken = cookieTokenStore.getAccessToken()
