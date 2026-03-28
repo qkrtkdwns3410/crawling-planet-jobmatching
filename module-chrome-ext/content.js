@@ -75,8 +75,17 @@
   }
 
   function insertBadgeAfter(el, badge) {
-    // 회사명 요소 내부 끝에 삽입 (레이아웃 깨짐 방지)
-    el.appendChild(badge);
+    const style = window.getComputedStyle(el);
+    // overflow:hidden인 요소(A.link 등)는 내부에 넣으면 잘리므로 형제로 삽입
+    if (style.overflow === "hidden") {
+      if (el.nextSibling) {
+        el.parentNode.insertBefore(badge, el.nextSibling);
+      } else {
+        el.parentNode.appendChild(badge);
+      }
+    } else {
+      el.appendChild(badge);
+    }
   }
 
   async function loadReviewData(companyName, badge) {
