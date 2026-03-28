@@ -1,6 +1,8 @@
 package com.crawling.planet.domain.repository
 
 import com.crawling.planet.domain.entity.Company
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -41,10 +43,10 @@ interface CompanyRepository : JpaRepository<Company, Long> {
     ): List<Company>
 
     @Query("SELECT c FROM Company c WHERE c.averageRating IS NULL AND c.reviewCount > 0")
-    fun findCompaniesNeedingRatingUpdate(): List<Company>
+    fun findCompaniesNeedingRatingUpdate(pageable: Pageable): Page<Company>
 
     @Query("SELECT c FROM Company c WHERE c.reviewCount < 3")
-    fun findCompaniesNeedingReviews(): List<Company>
+    fun findCompaniesNeedingReviews(pageable: Pageable): Page<Company>
 
     @Transactional
     @Modifying

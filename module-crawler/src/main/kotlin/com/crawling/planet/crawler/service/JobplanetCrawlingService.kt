@@ -4,6 +4,7 @@ import com.crawling.planet.crawler.auth.JobplanetLoginService
 import com.crawling.planet.crawler.config.JobplanetApiProperties
 import com.crawling.planet.domain.repository.CompanyRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Flux
@@ -174,41 +175,53 @@ class JobplanetCrawlingService(
     /**
      * DB에 있는 회사 기준으로 리뷰 수집
      */
-    fun crawlReviewsForExistingCompanies(): Mono<CrawlingResult> {
-        val companies = companyRepository.findCompaniesNeedingReviews()
-        val total = companies.size
-        logger.info { "DB 기반 리뷰 수집 시작 - 대상 회사: $total" }
+    companion object {
+        private const val PAGE_SIZE = 1000
+    }
 
+    fun crawlReviewsForExistingCompanies(): Mono<CrawlingResult> {
         val totalReviews = AtomicLong(0)
         val failed = AtomicLong(0)
         val processed = AtomicLong(0)
 
-        return Flux.fromIterable(companies)
-            .flatMap(
-                { company ->
-                    crawlCompany(company.jobplanetId)
-                        .doOnSuccess { result ->
-                            val count = processed.incrementAndGet()
-                            if (result != null) {
-                                totalReviews.addAndGet(result.reviewsSaved.toLong())
-                            }
-                            if (count % 1000 == 0L) {
-                                logger.info { "진행: $count/$total - 리뷰: ${totalReviews.get()}, 실패: ${failed.get()}" }
-                            }
-                        }
-                        .doOnError { failed.incrementAndGet() }
-                        .onErrorResume { Mono.empty() }
-                },
-                apiProperties.concurrency
-            )
-            .then(Mono.fromCallable {
-                CrawlingResult(
-                    totalCompanies = processed.get(),
-                    totalReviews = totalReviews.get(),
-                    skippedReviews = 0,
-                    failedCompanies = failed.get()
-                )
-            })
+        return Mono.fromCallable {
+            companyRepository.findCompaniesNeedingReviews(PageRequest.of(0, 1)).totalElements
+        }
+            .flatMap { total ->
+                logger.info { "DB 기반 리뷰 수집 시작 - 대상 회사: $total" }
+                val totalPages = ((total + PAGE_SIZE - 1) / PAGE_SIZE).toInt()
+
+                Flux.range(0, totalPages)
+                    .concatMap { page ->
+                        val companies = companyRepository.findCompaniesNeedingReviews(PageRequest.of(page, PAGE_SIZE)).content
+                        Flux.fromIterable(companies)
+                            .flatMap(
+                                { company ->
+                                    crawlCompany(company.jobplanetId)
+                                        .doOnSuccess { result ->
+                                            val count = processed.incrementAndGet()
+                                            if (result != null) {
+                                                totalReviews.addAndGet(result.reviewsSaved.toLong())
+                                            }
+                                            if (count % 1000 == 0L) {
+                                                logger.info { "진행: $count/$total - 리뷰: ${totalReviews.get()}, 실패: ${failed.get()}" }
+                                            }
+                                        }
+                                        .doOnError { failed.incrementAndGet() }
+                                        .onErrorResume { Mono.empty() }
+                                },
+                                apiProperties.concurrency
+                            )
+                    }
+                    .then(Mono.fromCallable {
+                        CrawlingResult(
+                            totalCompanies = processed.get(),
+                            totalReviews = totalReviews.get(),
+                            skippedReviews = 0,
+                            failedCompanies = failed.get()
+                        )
+                    })
+            }
     }
 
     data class CrawlingResult(

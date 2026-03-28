@@ -21,6 +21,23 @@
 
 ---
 
+## [2026-03-29] 성능 — 대량 조회 쿼리 페이징 처리 (OOM 방지)
+
+### 문제
+`findCompaniesNeedingRatingUpdate()`와 `findCompaniesNeedingReviews()`가 `List<Company>`로 전체 결과를 한번에 메모리에 로드. 24만건 이상일 때 OOM 발생하여 서버 응답 불가 상태가 됨.
+
+### 해결
+- 두 쿼리 모두 `Pageable` 파라미터를 받아 `Page<Company>` 반환으로 변경
+- 서비스에서 `concatMap`으로 1000건씩 순차 페이징 처리
+- 총 건수 먼저 조회 → 페이지 수 계산 → 페이지별 처리
+
+### 변경 파일
+- `module-domain/.../repository/CompanyRepository.kt` — `Pageable` 파라미터 추가
+- `module-crawler/.../service/CompanyRatingUpdateService.kt` — 페이징 루프
+- `module-crawler/.../service/JobplanetCrawlingService.kt` — 페이징 루프
+
+---
+
 ## [2026-03-29] 데이터 — Unknown Company 442건 회사명 복구
 
 ### 문제
