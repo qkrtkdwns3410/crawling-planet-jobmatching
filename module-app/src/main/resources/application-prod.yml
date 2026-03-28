@@ -5,8 +5,8 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 50
+      minimum-idle: 10
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -26,10 +26,10 @@ jobplanet:
     start-company-id: 1
     end-company-id: 500000
     batch-size: 100
-    concurrency: 100
-    delay-ms: 50
-    retry-delay-ms: 2000
-    max-retries: 5
+    concurrency: 200
+    delay-ms: 10
+    retry-delay-ms: 1000
+    max-retries: 3
 
 logging:
   level:
