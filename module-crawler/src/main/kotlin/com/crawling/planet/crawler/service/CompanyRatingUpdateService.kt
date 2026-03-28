@@ -39,6 +39,7 @@ class CompanyRatingUpdateService(
                         .doOnNext { header ->
                             companyRepository.updateCompanyDetails(
                                 company.id,
+                                header.name,
                                 header.rateTotalAvg,
                                 header.industryName,
                                 header.logoPath
@@ -70,6 +71,7 @@ class CompanyRatingUpdateService(
                 companyRepository.findByJobplanetId(jobplanetId).ifPresent { company ->
                     companyRepository.updateCompanyDetails(
                         company.id,
+                        header.name,
                         header.rateTotalAvg,
                         header.industryName,
                         header.logoPath
@@ -87,7 +89,7 @@ class CompanyRatingUpdateService(
             .bodyToMono(LandingHeaderResponse::class.java)
             .flatMap { response ->
                 val data = response.data
-                if (data?.rateTotalAvg != null) Mono.just(data) else Mono.empty()
+                if (data?.name != null) Mono.just(data) else Mono.empty()
             }
     }
 
@@ -96,6 +98,7 @@ class CompanyRatingUpdateService(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class LandingHeaderData(
+        val name: String?,
         @JsonProperty("rate_total_avg") val rateTotalAvg: Double?,
         @JsonProperty("industry_name") val industryName: String?,
         @JsonProperty("logo_path") val logoPath: String?,

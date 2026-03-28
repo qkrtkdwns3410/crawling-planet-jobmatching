@@ -49,11 +49,12 @@ interface CompanyRepository : JpaRepository<Company, Long> {
     @Transactional
     @Modifying
     @Query(
-        value = "UPDATE companies SET average_rating = :rating, industry = COALESCE(:industry, industry), logo_url = COALESCE(:logoUrl, logo_url) WHERE id = :id",
+        value = "UPDATE companies SET name = COALESCE(:name, name), average_rating = COALESCE(:rating, average_rating), industry = COALESCE(:industry, industry), logo_url = COALESCE(:logoUrl, logo_url) WHERE id = :id",
         nativeQuery = true
     )
     fun updateCompanyDetails(
         @Param("id") id: Long,
+        @Param("name") name: String?,
         @Param("rating") rating: Double?,
         @Param("industry") industry: String?,
         @Param("logoUrl") logoUrl: String?

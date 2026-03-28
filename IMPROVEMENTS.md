@@ -21,6 +21,26 @@
 
 ---
 
+## [2026-03-29] 데이터 — Unknown Company 442건 회사명 복구
+
+### 문제
+리뷰 API(`/api/v4/companies/reviews/list`) 응답에서 회사 정보는 `JOB_POSTINGS` 타입 아이템에만 포함됨. 채용공고가 없는 회사는 `JOB_POSTINGS` 아이템이 없어서 회사명을 추출하지 못하고 `Unknown Company (ID: xxx)`로 저장됨. 총 442건 발생.
+
+### 원인
+`ReviewDataService.extractCompanyInfo()`가 `JOB_POSTINGS` 아이템에서만 회사명을 추출하는 구조. 채용공고 없는 회사에 대한 fallback이 없었음.
+
+### 해결
+- `CompanyRatingUpdateService`의 `LandingHeaderData`에 `name` 필드 추가
+- `CompanyRepository.updateCompanyDetails()`에 `name` 파라미터 추가 (`COALESCE`로 null-safe)
+- `updateSingleCompanyRating()`에서 header API의 회사명도 함께 업데이트
+- 기존 442건은 EC2에서 landing/header API 일괄 호출 스크립트로 복구 완료 (0건 남음)
+
+### 변경 파일
+- `module-crawler/.../service/CompanyRatingUpdateService.kt` — `LandingHeaderData.name` 추가, 호출부 수정
+- `module-domain/.../repository/CompanyRepository.kt` — `updateCompanyDetails` name 파라미터 추가
+
+---
+
 ## [2026-03-29] 보안 — CRITICAL 이슈 2건 수정
 
 ### 문제 1: API Key 서버 측 검증 없음
