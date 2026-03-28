@@ -48,45 +48,6 @@ class ReviewDataService(
     }
 
     /**
-     * 여러 페이지의 응답 일괄 저장
-     */
-    @Transactional
-    fun saveFromApiResponses(companyId: Long, responses: List<JobplanetApiResponse>): SaveResult {
-        var totalCompanySaved = 0
-        var totalReviewsSaved = 0
-        var totalReviewsSkipped = 0
-        val companyReviewCounts = mutableMapOf<Long, Int>()
-
-        for (response in responses) {
-            val (result, company) = saveFromApiResponseInternal(companyId, response)
-            totalCompanySaved += result.companiesSaved
-            totalReviewsSaved += result.reviewsSaved
-            totalReviewsSkipped += result.reviewsSkipped
-            
-            // 각 회사별로 저장된 리뷰 수 누적
-            if (company != null && result.reviewsSaved > 0) {
-                companyReviewCounts[company.id] = companyReviewCounts.getOrDefault(company.id, 0) + result.reviewsSaved
-            }
-        }
-
-        // 모든 응답 처리 후 각 회사별로 리뷰 수 원자적으로 증가
-        for ((companyId, reviewCount) in companyReviewCounts) {
-            companyRepository.incrementReviewCount(companyId, reviewCount)
-        }
-
-        logger.info { 
-            "일괄 데이터 저장 완료 - companyId: $companyId, " +
-            "회사저장: ${if (totalCompanySaved > 0) 1 else 0}, 리뷰저장: $totalReviewsSaved, 리뷰스킵: $totalReviewsSkipped" 
-        }
-
-        return SaveResult(
-            if (totalCompanySaved > 0) 1 else 0,
-            totalReviewsSaved,
-            totalReviewsSkipped
-        )
-    }
-
-    /**
      * API 응답에서 회사 및 리뷰 데이터 저장 (내부용 - 회사 카운트 업데이트 없음)
      */
     private fun saveFromApiResponseInternal(companyId: Long, response: JobplanetApiResponse): Pair<SaveResult, Company?> {
@@ -98,10 +59,18 @@ class ReviewDataService(
 
         // 1. JOB_POSTINGS에서 회사 정보 추출 및 저장
         val companyInfo = extractCompanyInfo(items)
+        val reviews = extractReviews(items)
+
+        // 회사 정보도 없고 리뷰도 없으면 스킵
+        if (companyInfo == null && reviews.isEmpty()) {
+            logger.debug { "회사 정보 및 리뷰 없음 - companyId: $companyId, 스킵" }
+            return Pair(SaveResult(0, 0, 0), null)
+        }
+
         val company = if (companyInfo != null) {
             saveOrUpdateCompany(companyInfo)?.also { companySaved = 1 }
         } else {
-            // 회사 정보가 없으면 기본 정보로 생성
+            // 리뷰는 있지만 회사 정보가 없는 경우에만 기본 정보로 생성
             getOrCreateCompany(companyId)
         }
 
@@ -117,8 +86,8 @@ class ReviewDataService(
         }
 
         val remainingSlots = (MAX_REVIEWS_PER_COMPANY - existingReviewCount).toInt()
-        val reviews = extractReviews(items).take(remainingSlots)
-        for (reviewDto in reviews) {
+        val reviewsToSave = reviews.take(remainingSlots)
+        for (reviewDto in reviewsToSave) {
             try {
                 val reviewId = reviewDto.id ?: continue
 
@@ -223,19 +192,19 @@ class ReviewDataService(
             } else {
                 JobplanetItemType.COMPANY_REVIEW
             },
-            rating = reviewDto.rating,
-            growthScore = reviewDto.growthRate,
-            salaryScore = reviewDto.rewardRate,
-            workLifeBalanceScore = reviewDto.balanceRate,
-            cultureScore = reviewDto.cultureRate,
-            managementScore = reviewDto.leadershipRate,
-            summary = reviewDto.summary,
+            rating = reviewDto.overall?.toDouble(),
+            growthScore = reviewDto.score?.advancementRating?.toDouble(),
+            salaryScore = reviewDto.score?.compensationRating?.toDouble(),
+            workLifeBalanceScore = reviewDto.score?.worklifeBalanceRating?.toDouble(),
+            cultureScore = reviewDto.score?.cultureRating?.toDouble(),
+            managementScore = reviewDto.score?.managementRating?.toDouble(),
+            summary = reviewDto.title,
             pros = reviewDto.pros,
             cons = reviewDto.cons,
-            toManagement = reviewDto.toManagement,
-            likeCount = reviewDto.likeCount ?: 0,
-            reviewYear = reviewDto.reviewYear,
-            reviewCreatedAt = parseDate(reviewDto.createdAt)
+            toManagement = reviewDto.messageToManagement,
+            likeCount = reviewDto.helpfulCount ?: 0,
+            reviewYear = reviewDto.lastYearAtEmployer?.toString(),
+            reviewCreatedAt = parseDate(reviewDto.date)
         )
     }
 
