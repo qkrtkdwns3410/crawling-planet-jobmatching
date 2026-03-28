@@ -75,14 +75,14 @@
   }
 
   function insertBadgeAfter(el, badge) {
-    const style = window.getComputedStyle(el);
-    // overflow:hidden인 요소(A.link 등)는 내부에 넣으면 잘리므로 형제로 삽입
-    if (style.overflow === "hidden") {
-      if (el.nextSibling) {
-        el.parentNode.insertBefore(badge, el.nextSibling);
-      } else {
-        el.parentNode.appendChild(badge);
-      }
+    const parent = el.parentElement;
+    // TD 셀 안의 링크(테이블 리스트)는 배지를 TD 맨 끝에 삽입 (절대위치 하트 버튼과 겹침 방지)
+    if (parent && parent.tagName === "TD") {
+      badge.style.display = "block";
+      badge.style.marginLeft = "0";
+      badge.style.marginTop = "2px";
+      badge.style.width = "fit-content";
+      parent.appendChild(badge);
     } else {
       el.appendChild(badge);
     }
