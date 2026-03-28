@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jobplanet_test
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+jobplanet:
+  base-url: http://localhost:8089
+  auth:
+    email: test@example.com
+    password: test-password
+    headless: true
+    login-timeout-seconds: 5
+  api:
+    auto-start: false
+    access-token: test-access-token
+    refresh-token: test-refresh-token
+    ssr-auth: test-ssr-auth
+    start-company-id: 1
+    end-company-id: 100
+    batch-size: 10
+    concurrency: 1
+    delay-ms: 0
+    retry-delay-ms: 100
+    max-retries: 1
+
+logging:
+  level:
+    root: WARN
+    com.crawling.planet: INFO

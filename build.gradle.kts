@@ -34,6 +34,8 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        systemProperty("DOCKER_HOST", "tcp://localhost:2375")
+        jvmArgs("-Dorg.testcontainers.docker.host=tcp://localhost:2375")
     }
 
     the<JavaPluginExtension>().apply {
@@ -49,5 +51,15 @@ subprojects {
 
         "testImplementation"("org.jetbrains.kotlin:kotlin-test-junit5")
         "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+
+        // Testcontainers (PostgreSQL E2E 테스트용)
+        "testImplementation"("org.testcontainers:postgresql:1.20.4")
+        "testImplementation"("org.testcontainers:junit-jupiter:1.20.4")
+
+        // WireMock (외부 API 모킹)
+        "testImplementation"("org.wiremock:wiremock-standalone:3.10.0")
+
+        // Spring Boot Testcontainers 통합 (@ServiceConnection 지원)
+        "testImplementation"("org.springframework.boot:spring-boot-testcontainers")
     }
 }
