@@ -39,4 +39,23 @@ interface CompanyRepository : JpaRepository<Company, Long> {
         @Param("searchName") searchName: String,
         @Param("limitCount") limitCount: Int = 5
     ): List<Company>
+
+    @Query("SELECT c FROM Company c WHERE c.averageRating IS NULL AND c.reviewCount > 0")
+    fun findCompaniesNeedingRatingUpdate(): List<Company>
+
+    @Query("SELECT c FROM Company c WHERE c.reviewCount < 3")
+    fun findCompaniesNeedingReviews(): List<Company>
+
+    @Transactional
+    @Modifying
+    @Query(
+        value = "UPDATE companies SET average_rating = :rating, industry = COALESCE(:industry, industry), logo_url = COALESCE(:logoUrl, logo_url) WHERE id = :id",
+        nativeQuery = true
+    )
+    fun updateCompanyDetails(
+        @Param("id") id: Long,
+        @Param("rating") rating: Double?,
+        @Param("industry") industry: String?,
+        @Param("logoUrl") logoUrl: String?
+    ): Int
 }

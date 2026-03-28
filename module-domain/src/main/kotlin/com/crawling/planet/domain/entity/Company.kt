@@ -10,8 +10,7 @@ import java.time.LocalDateTime
 @Table(
     name = "companies",
     indexes = [
-        Index(name = "idx_company_jobplanet_id", columnList = "jobplanetId", unique = true),
-        Index(name = "idx_company_name", columnList = "name")
+        Index(name = "idx_company_jobplanet_id", columnList = "jobplanetId", unique = true)
     ]
 )
 class Company(
