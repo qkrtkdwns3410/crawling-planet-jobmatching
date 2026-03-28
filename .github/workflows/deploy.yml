@@ -1,0 +1,72 @@
+name: Deploy to EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: '배포 대상'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - app
+          - api
+
+env:
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ec2-user
+  SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build module-app
+        if: inputs.module == 'all' || inputs.module == 'app'
+        run: ./gradlew :module-app:bootJar --no-daemon
+
+      - name: Build module-api
+        if: inputs.module == 'all' || inputs.module == 'api'
+        run: ./gradlew :module-api:bootJar --no-daemon
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy module-app
+        if: inputs.module == 'all' || inputs.module == 'app'
+        run: |
+          scp -i ~/.ssh/deploy_key module-app/build/libs/module-app-0.0.1.jar $EC2_USER@$EC2_HOST:/opt/crawling-planet/app.jar
+          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo systemctl restart crawling-planet-app"
+
+      - name: Deploy module-api
+        if: inputs.module == 'all' || inputs.module == 'api'
+        run: |
+          scp -i ~/.ssh/deploy_key module-api/build/libs/module-api-0.0.1.jar $EC2_USER@$EC2_HOST:/opt/crawling-planet/api.jar
+          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo systemctl restart crawling-planet-api"
+
+      - name: Health check
+        run: |
+          sleep 20
+          if [ "${{ inputs.module }}" != "api" ]; then
+            ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "curl -sf http://localhost:8080/api/crawling/status" && echo " -> app OK" || echo " -> app FAIL"
+          fi
+          if [ "${{ inputs.module }}" != "app" ]; then
+            ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "curl -sf http://localhost:8081/api/ext/company/search?name=test" && echo " -> api OK" || echo " -> api FAIL"
+          fi
