@@ -26,13 +26,13 @@ interface CompanyRepository : JpaRepository<Company, Long> {
     fun incrementReviewCount(id: Long, increment: Int): Int
 
     @Query(
-        value = "SELECT * FROM companies WHERE similarity(name, :searchName) > 0.3 ORDER BY similarity(name, :searchName) DESC LIMIT 1",
+        value = "SELECT * FROM companies WHERE name % :searchName ORDER BY similarity(name, :searchName) DESC LIMIT 1",
         nativeQuery = true
     )
     fun findMostSimilarByName(@Param("searchName") searchName: String): Company?
 
     @Query(
-        value = "SELECT * FROM companies WHERE similarity(name, :searchName) > 0.2 ORDER BY similarity(name, :searchName) DESC LIMIT :limitCount",
+        value = "SELECT * FROM companies WHERE name % :searchName ORDER BY similarity(name, :searchName) DESC LIMIT :limitCount",
         nativeQuery = true
     )
     fun findSimilarByName(
