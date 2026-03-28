@@ -1,126 +1,126 @@
 # Improvements & Optimizations
 
-Technical improvements, performance tuning, and architectural decisions documented for future reference.
+기술 개선사항, 성능 튜닝, 아키텍처 결정 사항을 기록합니다.
 
 ---
 
-## [2026-03-29] Database Query Performance — pg_trgm GIN Index Optimization
+## [2026-03-29] DB 쿼리 성능 최적화 — pg_trgm GIN 인덱스 활용
 
-### Problem
-Company name similarity search (`findMostSimilarByName`) degraded to **~640ms** as dataset grew to 241K+ companies. The query used `similarity(name, :searchName) > 0.3` which forced a **Parallel Sequential Scan** across the entire table, ignoring the existing GIN index.
+### 문제
+회사명 유사도 검색(`findMostSimilarByName`)이 데이터 24만건 이상으로 늘어나면서 **~640ms**까지 느려짐. `similarity(name, :searchName) > 0.3` 쿼리가 GIN 인덱스를 무시하고 **전체 테이블 스캔(Parallel Seq Scan)**을 수행.
 
-### Root Cause
-PostgreSQL's `similarity()` function with a threshold comparison (`> 0.3`) cannot leverage GIN indexes. The planner has no way to push the threshold into the index scan, resulting in a full table scan + filter.
+### 원인
+PostgreSQL의 `similarity()` 함수에 임계값 비교(`> 0.3`)를 사용하면 GIN 인덱스를 활용할 수 없음. 플래너가 임계값을 인덱스 스캔에 적용할 방법이 없어서 전체 스캔 + 필터 방식으로 동작.
 
-### Solution
-- Replaced `WHERE similarity(name, :searchName) > 0.3` with `WHERE name % :searchName`
-- The `%` operator is GIN-index-aware and uses `pg_trgm.similarity_threshold` (set to 0.3)
-- Recreated GIN index: `CREATE INDEX idx_company_name_trgm ON companies USING gin (name gin_trgm_ops)`
-- Set database-level threshold: `ALTER DATABASE jobplanet SET pg_trgm.similarity_threshold = 0.3`
+### 해결
+- `WHERE similarity(name, :searchName) > 0.3` → `WHERE name % :searchName`으로 변경
+- `%` 연산자는 GIN 인덱스를 활용하며, `pg_trgm.similarity_threshold` 설정값(0.3)을 사용
+- GIN 인덱스 재생성: `CREATE INDEX idx_company_name_trgm ON companies USING gin (name gin_trgm_ops)`
+- DB 레벨 임계값 설정: `ALTER DATABASE jobplanet SET pg_trgm.similarity_threshold = 0.3`
 
-### Result
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Query execution | 638ms (Seq Scan) | 64ms (Bitmap Index Scan) | **10x faster** |
-| API response (warm) | ~1.0s | ~0.22s | **4.5x faster** |
-| Scan type | Parallel Seq Scan (241K rows) | Bitmap Index Scan (589 candidates) | Index utilized |
+### 결과
+| 지표 | 개선 전 | 개선 후 | 개선율 |
+|------|---------|---------|--------|
+| 쿼리 실행 시간 | 638ms (Seq Scan) | 64ms (Bitmap Index Scan) | **10배 향상** |
+| API 응답 시간 (워밍업 후) | ~1.0s | ~0.22s | **4.5배 향상** |
+| 스캔 방식 | Parallel Seq Scan (24만행 전체) | Bitmap Index Scan (589건 후보) | 인덱스 활용 |
 
-### Files Changed
-- `module-domain/.../repository/CompanyRepository.kt` — `%` operator queries
-
----
-
-## [2026-03-29] Crawling Pipeline — Rating Collection Integration
-
-### Problem
-Company ratings (average score, industry, logo) required a separate API call (`POST /api/crawling/update-ratings`) after the main review crawling completed. This meant two full passes over the dataset.
-
-### Solution
-Integrated `CompanyRatingUpdateService.updateSingleCompanyRating()` into the `crawlCompany()` pipeline. After saving reviews, the landing header API (`/api/v5/companies/{id}/landing/header`) is called in the same reactive chain.
-
-### Result
-- Single crawl pass now collects: reviews + ratings + industry + logo
-- Eliminated the need for separate `update-ratings` execution
-- No additional latency — header API call runs after review save in the same reactive flow
-
-### Files Changed
-- `module-crawler/.../service/JobplanetCrawlingService.kt` — chained `updateSingleCompanyRating`
-- `module-crawler/.../service/CompanyRatingUpdateService.kt` — added `updateSingleCompanyRating()` method
+### 변경 파일
+- `module-domain/.../repository/CompanyRepository.kt` — `%` 연산자 쿼리로 변경
 
 ---
 
-## [2026-03-29] Chrome Extension — Badge Positioning Fix
+## [2026-03-29] 크롤링 파이프라인 — 평점 수집 통합
 
-### Problem
-Review badges overlapped with the favorite (heart) button on JobKorea's job listing table. The heart button uses `position: absolute; top: 29px` inside a 158px-wide `TD.tplCo` cell, causing visual collision with the injected badge.
+### 문제
+회사 평점(평균 점수, 산업, 로고)은 리뷰 크롤링 완료 후 별도 API(`POST /api/crawling/update-ratings`)를 호출해야 했음. 전체 데이터셋에 대해 두 번 순회해야 하는 비효율.
 
-### Solution
-Conditional badge insertion based on parent element type:
-- **TD parent** (table listing): Append badge as last child of TD with `display: block` — renders below all existing elements
-- **Other parents** (SPAN, etc.): Append inside the element as inline badge
+### 해결
+`CompanyRatingUpdateService.updateSingleCompanyRating()`을 `crawlCompany()` 파이프라인에 통합. 리뷰 저장 후 동일한 리액티브 체인에서 landing header API(`/api/v5/companies/{id}/landing/header`)를 호출.
 
-### Files Changed
-- `module-chrome-ext/content.js` — `insertBadgeAfter()` conditional logic
+### 결과
+- 한 번의 크롤링으로 리뷰 + 평점 + 산업 + 로고 동시 수집
+- 별도 `update-ratings` 실행이 불필요해짐
+- 추가 지연 없음 — 리뷰 저장 후 같은 리액티브 플로우에서 실행
 
----
-
-## [2026-03-29] Infrastructure — Cloudflare SSL + Nginx CORS
-
-### Problem
-1. Cloudflare SSL mode was "Full" (expects HTTPS on origin), but EC2 only serves HTTP → 522 Connection Timeout
-2. Nginx returned 403 on CORS preflight (OPTIONS) because API key validation ran before CORS handling
-
-### Solution
-1. Changed Cloudflare SSL mode to "Flexible" (HTTPS termination at Cloudflare, HTTP to origin)
-2. Moved OPTIONS preflight handling before API key validation in Nginx config
-
-### Result
-- Chrome extension can now reach the API via `https://crawling-planet.cc`
-- CORS preflight succeeds, actual requests validated with API key
+### 변경 파일
+- `module-crawler/.../service/JobplanetCrawlingService.kt` — `updateSingleCompanyRating` 체인 연결
+- `module-crawler/.../service/CompanyRatingUpdateService.kt` — `updateSingleCompanyRating()` 메서드 추가
 
 ---
 
-## [2026-03-28] AWS Infrastructure — Cost-Optimized Single Server
+## [2026-03-29] 크롬 익스텐션 — 배지 위치 겹침 수정
 
-### Architecture
+### 문제
+잡코리아 채용 목록 테이블에서 리뷰 배지가 관심기업(하트) 버튼과 겹침. 하트 버튼이 `position: absolute; top: 29px`로 배치되어 있고, 158px 너비의 `TD.tplCo` 셀 안에서 배지와 시각적 충돌 발생.
+
+### 해결
+부모 요소 타입에 따른 조건부 배지 삽입:
+- **TD 부모** (테이블 리스트): TD의 마지막 자식으로 `display: block` 배지 추가 — 기존 요소 아래에 렌더링
+- **기타 부모** (SPAN 등): 요소 내부에 인라인 배지로 추가
+
+### 변경 파일
+- `module-chrome-ext/content.js` — `insertBadgeAfter()` 조건 분기 로직
+
+---
+
+## [2026-03-29] 인프라 — Cloudflare SSL + Nginx CORS 수정
+
+### 문제
+1. Cloudflare SSL 모드가 "Full"(오리진에 HTTPS 필요)이었으나 EC2는 HTTP만 제공 → 522 Connection Timeout
+2. Nginx가 CORS preflight(OPTIONS)에서 API Key 검증을 먼저 실행해 403 반환
+
+### 해결
+1. Cloudflare SSL 모드를 "Flexible"로 변경 (Cloudflare에서 HTTPS 종료, 오리진에는 HTTP로 연결)
+2. Nginx 설정에서 OPTIONS preflight 처리를 API Key 검증보다 앞에 배치
+
+### 결과
+- 크롬 익스텐션이 `https://crawling-planet.cc`로 API 정상 접근 가능
+- CORS preflight 성공, 실제 요청은 API Key로 검증
+
+---
+
+## [2026-03-28] AWS 인프라 — 비용 최적화 단일 서버 구성
+
+### 아키텍처
 ```
-Chrome Extension → https://crawling-planet.cc (Cloudflare CDN/SSL/DDoS)
-                      → Nginx (port 80, API key + CORS + IP restriction)
-                         ├── /api/ext/*      → module-api :8081 (public, API key required)
-                         └── /api/crawling/* → module-app :8080 (admin IP only)
-                      → PostgreSQL 16 (localhost only)
+크롬 익스텐션 → https://crawling-planet.cc (Cloudflare CDN/SSL/DDoS 방어)
+                   → Nginx (포트 80, API Key + CORS + IP 제한)
+                      ├── /api/ext/*      → module-api :8081 (공개, API Key 필수)
+                      └── /api/crawling/* → module-app :8080 (관리자 IP만 허용)
+                   → PostgreSQL 16 (localhost만 리슨)
 ```
 
-### Design Decisions
-| Decision | Rationale |
-|----------|-----------|
-| EC2 Spot (t3.small) | ~$12/month, crawling is intermittent so burst credits accumulate during idle |
-| Single server (app + DB) | Personal project, eliminates RDS cost ($15+/month) and network latency |
-| Cloudflare Proxy | Free SSL, CDN, DDoS protection, hides origin IP |
-| Nginx reverse proxy | API key validation, CORS, IP restriction for admin endpoints |
-| S3 daily backup | pg_dump via cron, 30-day retention, ~$0.1/month |
-| Terraform IaC | Reproducible infrastructure, version controlled |
+### 설계 결정
+| 결정 | 근거 |
+|------|------|
+| EC2 Spot (t3.small) | 월 ~$12, 크롤링이 간헐적이라 유휴 시간에 CPU 크레딧 축적 |
+| 단일 서버 (앱 + DB) | 개인 프로젝트, RDS 비용($15+/월) 절감 및 네트워크 레이턴시 제거 |
+| Cloudflare 프록시 | 무료 SSL, CDN, DDoS 방어, 오리진 IP 은닉 |
+| Nginx 리버스 프록시 | API Key 검증, CORS 처리, 관리자 엔드포인트 IP 제한 |
+| S3 일일 백업 | pg_dump + cron, 30일 보관, 월 ~$0.1 |
+| Terraform IaC | 재현 가능한 인프라, 버전 관리 가능 |
 
-### Monthly Cost Estimate
-| Resource | Cost |
-|----------|------|
+### 월간 비용 예상
+| 리소스 | 비용 |
+|--------|------|
 | EC2 t3.small Spot | ~$5.8 |
 | EBS 30GB gp3 | $2.4 |
 | Public IPv4 | $3.6 |
-| S3 backup | ~$0.1 |
-| Cloudflare | Free |
-| **Total** | **~$12/month** |
+| S3 백업 | ~$0.1 |
+| Cloudflare | 무료 |
+| **합계** | **~$12/월** |
 
 ---
 
-## [2026-03-28] Security Hardening
+## [2026-03-28] 보안 강화
 
-| Layer | Measure |
-|-------|---------|
-| Network | Security Group: SSH/8080/8081 restricted to admin IP, port 80 open for Cloudflare |
-| DNS | Cloudflare Proxy mode hides EC2 IP |
-| API | `X-API-Key` header validation in Nginx |
-| Database | `listen_addresses = 'localhost'`, not exposed to network |
-| Storage | EBS encryption enabled, S3 server-side encryption (AES256) |
-| Admin | Crawling endpoints (`/api/crawling/*`) restricted to admin IP via Nginx |
-| Extension | No hardcoded IPs in manifest.json, domain-based HTTPS only |
+| 계층 | 조치 |
+|------|------|
+| 네트워크 | Security Group: SSH/8080/8081은 관리자 IP만 허용, 포트 80은 Cloudflare용 개방 |
+| DNS | Cloudflare 프록시 모드로 EC2 실제 IP 은닉 |
+| API | Nginx에서 `X-API-Key` 헤더 검증 |
+| 데이터베이스 | `listen_addresses = 'localhost'`, 외부 네트워크 노출 차단 |
+| 스토리지 | EBS 암호화 활성화, S3 서버사이드 암호화 (AES256) |
+| 관리자 | 크롤링 엔드포인트(`/api/crawling/*`)는 Nginx에서 관리자 IP만 허용 |
+| 익스텐션 | manifest.json에 IP 미노출, 도메인 기반 HTTPS 접근만 허용 |
