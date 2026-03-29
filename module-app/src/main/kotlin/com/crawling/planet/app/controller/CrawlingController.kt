@@ -35,9 +35,9 @@ class CrawlingController(
         loginService.loginIfNeeded()
         val result = crawlingService.crawlSingleCompany(companyId)
         return if (result != null) {
-            ResponseEntity.ok(CrawlResponse(true, "크롤링 완료", result.companiesSaved, result.reviewsSaved, result.reviewsSkipped))
+            ResponseEntity.ok(CrawlResponse(true, "크롤링 완료", result.companiesSaved, result.reviewsSaved))
         } else {
-            ResponseEntity.ok(CrawlResponse(false, "크롤링 실패 또는 데이터 없음", 0, 0, 0))
+            ResponseEntity.ok(CrawlResponse(false, "크롤링 실패 또는 데이터 없음", 0, 0))
         }
     }
 

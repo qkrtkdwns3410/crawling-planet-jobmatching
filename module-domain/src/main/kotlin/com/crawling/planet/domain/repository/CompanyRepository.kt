@@ -16,10 +16,6 @@ interface CompanyRepository : JpaRepository<Company, Long> {
 
     fun findByJobplanetId(jobplanetId: Long): Optional<Company>
 
-    fun existsByJobplanetId(jobplanetId: Long): Boolean
-
-    fun findByNameContainingIgnoreCase(name: String): List<Company>
-
     fun findByJobplanetIdIn(jobplanetIds: List<Long>): List<Company>
 
     @Transactional

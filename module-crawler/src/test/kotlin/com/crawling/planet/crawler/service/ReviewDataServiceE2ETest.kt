@@ -98,7 +98,6 @@ class ReviewDataServiceE2ETest {
         // then
         assertEquals(1, result.companiesSaved, "회사 1개 저장 기대")
         assertEquals(2, result.reviewsSaved, "리뷰 2개 저장 기대")
-        assertEquals(0, result.reviewsSkipped)
 
         // DB 검증
         val savedCompany = companyRepository.findByJobplanetId(500001L)
@@ -300,7 +299,6 @@ class ReviewDataServiceE2ETest {
         // then
         assertEquals(0, result.companiesSaved)
         assertEquals(0, result.reviewsSaved)
-        assertEquals(0, result.reviewsSkipped)
 
         // DB에 아무것도 저장되지 않아야 함
         val company = companyRepository.findByJobplanetId(999999L)

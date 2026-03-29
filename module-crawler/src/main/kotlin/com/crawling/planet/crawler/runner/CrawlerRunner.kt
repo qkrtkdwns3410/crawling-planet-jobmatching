@@ -52,7 +52,6 @@ class CrawlerRunner(
             logger.info { "소요 시간: ${duration.toHours()}시간 ${duration.toMinutesPart()}분 ${duration.toSecondsPart()}초" }
             logger.info { "수집된 회사: ${result?.totalCompanies ?: 0}" }
             logger.info { "수집된 리뷰: ${result?.totalReviews ?: 0}" }
-            logger.info { "스킵된 리뷰 (중복): ${result?.skippedReviews ?: 0}" }
             logger.info { "실패한 회사: ${result?.failedCompanies ?: 0}" }
             logger.info { "=".repeat(60) }
 

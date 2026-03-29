@@ -32,85 +32,55 @@ class ReviewDataService(
      */
     @Transactional
     fun saveFromApiResponse(companyId: Long, response: JobplanetApiResponse): SaveResult {
-        val (result, company) = saveFromApiResponseInternal(companyId, response)
-        
-        // 단일 응답 처리 시 회사의 리뷰 수 원자적으로 증가
-        if (company != null && result.reviewsSaved > 0) {
-            companyRepository.incrementReviewCount(company.id, result.reviewsSaved)
-        }
-
-        logger.info { 
-            "데이터 저장 완료 - companyId: $companyId, " +
-            "회사저장: ${result.companiesSaved}, 리뷰저장: ${result.reviewsSaved}, 리뷰스킵: ${result.reviewsSkipped}" 
-        }
-
-        return result
-    }
-
-    /**
-     * API 응답에서 회사 및 리뷰 데이터 저장 (내부용 - 회사 카운트 업데이트 없음)
-     */
-    private fun saveFromApiResponseInternal(companyId: Long, response: JobplanetApiResponse): Pair<SaveResult, Company?> {
-        val items = response.data?.items ?: return Pair(SaveResult(0, 0, 0), null)
+        val items = response.data?.items ?: return SaveResult(0, 0)
 
         var companySaved = 0
         var reviewsSaved = 0
-        var reviewsSkipped = 0
 
-        // 1. JOB_POSTINGS에서 회사 정보 추출 및 저장
         val companyInfo = extractCompanyInfo(items)
         val reviews = extractReviews(items)
 
-        // 회사 정보도 없고 리뷰도 없으면 스킵
         if (companyInfo == null && reviews.isEmpty()) {
-            logger.debug { "회사 정보 및 리뷰 없음 - companyId: $companyId, 스킵" }
-            return Pair(SaveResult(0, 0, 0), null)
+            return SaveResult(0, 0)
         }
 
         val company = if (companyInfo != null) {
             saveOrUpdateCompany(companyInfo)?.also { companySaved = 1 }
         } else {
-            // 리뷰는 있지만 회사 정보가 없는 경우에만 기본 정보로 생성
             getOrCreateCompany(companyId)
-        }
-
-        if (company == null) {
-            logger.warn { "회사 정보 저장 실패 - companyId: $companyId" }
-            return Pair(SaveResult(0, 0, 0), null)
-        }
+        } ?: return SaveResult(0, 0)
 
         val newReviews = reviews.take(MAX_REVIEWS_PER_COMPANY)
         val newReviewIds = newReviews.mapNotNull { it.id }.toSet()
 
-        // 기존 리뷰 ID 목록 조회 (가벼운 쿼리)
         val existingReviews = reviewRepository.findByCompanyId(company.id)
         val existingReviewIds = existingReviews.map { it.jobplanetReviewId }.toSet()
 
-        // 동일하면 스킵
         if (newReviewIds == existingReviewIds) {
-            logger.debug { "리뷰 변경 없음 - companyId: $companyId, 스킵" }
-            return Pair(SaveResult(companySaved, 0, 0), company)
+            return SaveResult(companySaved, 0)
         }
 
-        // 변경 감지 → 기존 삭제 후 새로 삽입
         if (existingReviews.isNotEmpty()) {
             reviewRepository.deleteAll(existingReviews)
-            // reviewCount 차감
             companyRepository.incrementReviewCount(company.id, -existingReviews.size)
         }
 
         for (reviewDto in newReviews) {
             try {
-                val reviewId = reviewDto.id ?: continue
-                val review = createReviewEntity(reviewDto, company)
-                reviewRepository.save(review)
+                reviewDto.id ?: continue
+                reviewRepository.save(createReviewEntity(reviewDto, company))
                 reviewsSaved++
             } catch (e: Exception) {
                 logger.error(e) { "리뷰 저장 실패 - reviewId: ${reviewDto.id}" }
             }
         }
 
-        return Pair(SaveResult(companySaved, reviewsSaved, reviewsSkipped), company)
+        if (reviewsSaved > 0) {
+            companyRepository.incrementReviewCount(company.id, reviewsSaved)
+        }
+
+        logger.info { "저장 완료 - companyId: $companyId, 회사: $companySaved, 리뷰: $reviewsSaved" }
+        return SaveResult(companySaved, reviewsSaved)
     }
 
     /**
@@ -234,8 +204,7 @@ class ReviewDataService(
      */
     data class SaveResult(
         val companiesSaved: Int,
-        val reviewsSaved: Int,
-        val reviewsSkipped: Int
+        val reviewsSaved: Int
     )
 }
 
