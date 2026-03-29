@@ -49,6 +49,10 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Prepare deploy directory
+        run: |
+          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo mkdir -p /opt/crawling-planet && sudo chown ec2-user:ec2-user /opt/crawling-planet"
+
       - name: Deploy module-app
         if: inputs.module == 'all' || inputs.module == 'app'
         run: |
