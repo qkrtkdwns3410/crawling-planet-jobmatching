@@ -20,7 +20,7 @@ data class JobplanetApiProperties(
     /**
      * SSR Auth 토큰
      */
-    val ssrAuth: String = "jobplanet_desktop_ssr_1d6f8a5f219176accbb8fe051729fc6a",
+    val ssrAuth: String = "",
     
     /**
      * 시작 회사 ID
