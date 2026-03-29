@@ -22,7 +22,7 @@ jobplanet:
     auto-start: false
     access-token: ${JOBPLANET_ACCESS_TOKEN:}
     refresh-token: ${JOBPLANET_REFRESH_TOKEN:}
-    ssr-auth: ***REMOVED***
+    ssr-auth: ${JOBPLANET_SSR_AUTH:}
     start-company-id: 1
     end-company-id: 500000
     batch-size: 100

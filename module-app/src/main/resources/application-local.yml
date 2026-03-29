@@ -20,7 +20,7 @@ spring:
 jobplanet:
   base-url: https://www.jobplanet.co.kr
   auth:
-    email: ${JOBPLANET_EMAIL:***REMOVED***}
+    email: ${JOBPLANET_EMAIL:}
     password: ${JOBPLANET_PASSWORD:}
     headless: true
     login-timeout-seconds: 30
@@ -31,7 +31,7 @@ jobplanet:
     # 인증 토큰 (로그인 후 브라우저 쿠키에서 복사)
     access-token: ${JOBPLANET_ACCESS_TOKEN:}
     refresh-token: ${JOBPLANET_REFRESH_TOKEN:}
-    ssr-auth: ***REMOVED***
+    ssr-auth: ${JOBPLANET_SSR_AUTH:}
     
     # 크롤링 범위
     start-company-id: 1

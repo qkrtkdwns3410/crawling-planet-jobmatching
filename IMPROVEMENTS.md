@@ -4,6 +4,25 @@
 
 ---
 
+## Public 전환 보안 점검 (2026-03-29)
+
+### 하드코딩된 시크릿 제거
+
+**문제:** Chrome Extension에 API Key가 하드코딩되어 있고, application yml 파일에 SSR 인증 토큰과 개인 이메일이 기본값으로 포함되어 있어 레포 공개 시 시크릿 유출 위험.
+
+**원인:** 초기 개발 시 편의를 위해 설정값을 직접 소스코드에 기입.
+
+**해결:**
+1. `background.js` — API Key 하드코딩 제거, `chrome.storage.sync`에서 동적 로드하도록 변경
+2. `manifest.json` — `storage` 권한 추가, API Key 설정용 옵션 페이지(`options.html/js`) 신규 생성
+3. `application-local.yml` — 개인 이메일 기본값 제거 (`${JOBPLANET_EMAIL:}`), SSR 토큰 환경변수화 (`${JOBPLANET_SSR_AUTH:}`)
+4. `application-prod.yml` — SSR 토큰 환경변수화 (`${JOBPLANET_SSR_AUTH:}`)
+5. `.gitignore` — `.omc/`, `chrome-ext-*.zip`, `.env`, `*.tfstate`, `*.tfvars` 등 민감 파일 패턴 추가
+
+**결과:** GitGuardian 탐지 대상 시크릿이 현재 코드에서 모두 제거됨. Git history 정리(BFG)와 서버 API Key 로테이션은 별도 수행 필요.
+
+---
+
 ## 향후 개선 예정 (Backlog)
 
 ### 영문 회사명 ↔ 한글 회사명 유사도 매칭 미지원

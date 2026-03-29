@@ -38,3 +38,15 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Security ###
+.omc/
+chrome-ext-*.zip
+.env
+.env.*
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.auto.tfvars
+.terraform/
+.terraform.lock.hcl
