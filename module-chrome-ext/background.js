@@ -1,12 +1,5 @@
-const DEFAULT_API_BASE = "https://crawling-planet.cc";
-
-async function getConfig() {
-  const result = await chrome.storage.sync.get({
-    apiBase: DEFAULT_API_BASE,
-    apiKey: "",
-  });
-  return result;
-}
+const API_BASE = "https://crawling-planet.cc";
+const API_KEY = "81ac015245127b2ddb1b0bfd2362d700bb6232128f2e99f2f7ddf9e5945944a9";
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === "FETCH_COMPANY_REVIEWS") {
@@ -22,12 +15,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
 async function fetchCompanyReviews(companyName) {
   try {
-    const { apiBase, apiKey } = await getConfig();
-    const url = `${apiBase}/api/ext/company/search?name=${encodeURIComponent(companyName)}`;
+    const url = `${API_BASE}/api/ext/company/search?name=${encodeURIComponent(companyName)}`;
 
     const response = await fetch(url, {
       method: "GET",
-      headers: { Accept: "application/json", "X-API-Key": apiKey },
+      headers: { Accept: "application/json", "X-API-Key": API_KEY },
     });
 
     if (!response.ok) {
@@ -48,10 +40,9 @@ async function fetchCompanyReviews(companyName) {
 
 async function testConnection() {
   try {
-    const { apiBase, apiKey } = await getConfig();
-    const response = await fetch(`${apiBase}/api/ext/company/search?name=test`, {
+    const response = await fetch(`${API_BASE}/api/ext/company/search?name=test`, {
       method: "GET",
-      headers: { Accept: "application/json", "X-API-Key": apiKey },
+      headers: { Accept: "application/json", "X-API-Key": API_KEY },
     });
 
     if (response.ok) {
