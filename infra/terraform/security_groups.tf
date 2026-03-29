@@ -4,13 +4,13 @@ resource "aws_security_group" "app" {
   description = "Security group for crawling-planet app server"
   vpc_id      = aws_vpc.main.id
 
-  # SSH - 본인 IP만
+  # SSH - GitHub Actions 배포 + 본인 접속용 (키 인증으로 보호)
   ingress {
-    description = "SSH from my IP"
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${var.my_ip}/32"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # App port - 본인 IP만
