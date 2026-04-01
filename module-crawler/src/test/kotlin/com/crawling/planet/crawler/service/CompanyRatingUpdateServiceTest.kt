@@ -147,7 +147,6 @@ class CompanyRatingUpdateServiceTest {
         StepVerifier.create(service.updateSingleCompanyRating(jobplanetId))
             .verifyComplete()
 
-        // 404는 재시도 없이 바로 완료 - 요청은 정확히 1번만 발생해야 함
         wireMockServer.verify(1, getRequestedFor(urlEqualTo("/api/v5/companies/$jobplanetId/landing/header")))
         verify(companyRepository, never()).updateCompanyDetails(anyLong(), any(), any(), any(), any())
     }

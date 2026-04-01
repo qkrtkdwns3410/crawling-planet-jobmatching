@@ -154,17 +154,13 @@ class ReviewDataServiceTest {
         assertEquals(3, result.reviewsSaved)
     }
 
-    // ========== 헬퍼 메서드 ==========
-
     private fun buildApiResponse(
         companyId: Long,
         companyName: String,
         averageRating: Double = 3.8,
         reviews: List<JobplanetReview>
     ): JobplanetApiResponse {
-        val items = mutableListOf<JobplanetItem>()
-
-        items.add(
+        val items = listOf(
             JobplanetItem(
                 type = JobplanetItemType.JOB_POSTINGS,
                 review = null,
@@ -187,17 +183,13 @@ class ReviewDataServiceTest {
                 ),
                 items = null
             )
-        )
-
-        reviews.forEach { review ->
-            items.add(
-                JobplanetItem(
-                    type = JobplanetItemType.COMPANY_REVIEW,
-                    review = review,
-                    similarReviews = null,
-                    company = null,
-                    items = null
-                )
+        ) + reviews.map { review ->
+            JobplanetItem(
+                type = JobplanetItemType.COMPANY_REVIEW,
+                review = review,
+                similarReviews = null,
+                company = null,
+                items = null
             )
         }
 
