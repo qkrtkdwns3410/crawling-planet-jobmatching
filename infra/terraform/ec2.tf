@@ -19,18 +19,32 @@ data "aws_ami" "al2023" {
   }
 }
 
-# EC2 Spot Instance
-resource "aws_spot_instance_request" "app" {
+# PostgreSQL 데이터 전용 EBS 볼륨
+resource "aws_ebs_volume" "pg_data" {
+  availability_zone = "${var.aws_region}a"
+  size              = 20
+  type              = "gp3"
+  iops              = 3000
+  throughput        = 125
+  encrypted         = true
+
+  tags = {
+    Name = "${var.project_name}-pg-data"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# EC2 On-Demand Instance
+resource "aws_instance" "app" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = var.instance_type
   key_name               = var.key_name
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.app.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-
-  # Spot 설정
-  spot_type            = "persistent"
-  wait_for_fulfillment = true
 
   # EBS Root Volume - 30GB gp3
   root_block_device {
@@ -44,20 +58,14 @@ resource "aws_spot_instance_request" "app" {
 
   # User Data - 부트스트랩 스크립트
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    DB_PASSWORD   = var.db_password
-    BACKUP_BUCKET = aws_s3_bucket.backup.id
+    DB_PASSWORD      = var.db_password
+    BACKUP_BUCKET    = aws_s3_bucket.backup.id
+    DATA_VOLUME_ID   = aws_ebs_volume.pg_data.id
   }))
 
   tags = {
     Name = "${var.project_name}-app"
   }
-}
-
-# Spot 인스턴스에 태그 전파
-resource "aws_ec2_tag" "app_name" {
-  resource_id = aws_spot_instance_request.app.spot_instance_id
-  key         = "Name"
-  value       = "${var.project_name}-app"
 }
 
 # Elastic IP
@@ -69,8 +77,8 @@ resource "aws_eip" "app" {
   }
 }
 
-# EIP를 Spot 인스턴스에 연결
+# EIP를 EC2 인스턴스에 연결
 resource "aws_eip_association" "app" {
-  instance_id   = aws_spot_instance_request.app.spot_instance_id
+  instance_id   = aws_instance.app.id
   allocation_id = aws_eip.app.id
 }

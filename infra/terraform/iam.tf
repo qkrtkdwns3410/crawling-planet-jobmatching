@@ -41,6 +41,27 @@ resource "aws_iam_role_policy" "s3_backup" {
   })
 }
 
+# EBS 볼륨 자동 연결 권한 (Spot 재기동 시 데이터 볼륨 attach)
+resource "aws_iam_role_policy" "ebs_attach" {
+  name = "${var.project_name}-ebs-attach-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:AttachVolume",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVolumeStatus"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # SSM Session Manager 접근 (SSH 대안)
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.ec2_role.name

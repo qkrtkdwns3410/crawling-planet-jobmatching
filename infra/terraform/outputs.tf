@@ -1,6 +1,6 @@
-output "spot_instance_id" {
-  description = "Spot instance ID"
-  value       = aws_spot_instance_request.app.spot_instance_id
+output "instance_id" {
+  description = "EC2 instance ID"
+  value       = aws_instance.app.id
 }
 
 output "public_ip" {
