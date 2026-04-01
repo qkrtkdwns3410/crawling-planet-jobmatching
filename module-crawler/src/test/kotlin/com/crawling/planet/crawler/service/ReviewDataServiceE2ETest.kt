@@ -8,8 +8,13 @@ import com.crawling.planet.domain.repository.ReviewRepository
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.autoconfigure.domain.EntityScan
+import org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration
+import org.springframework.boot.autoconfigure.web.reactive.error.ErrorWebFluxAutoConfiguration
+import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.ComponentScan.Filter
@@ -29,7 +34,7 @@ import kotlin.test.assertTrue
  * - 동일 리뷰 스킵: 리뷰 ID가 같으면 저장 생략
  * - Unknown Company fallback: 회사 정보 없을 때 기본 이름으로 생성
  */
-@SpringBootTest(classes = [ReviewDataServiceE2ETest.TestConfig::class])
+@SpringBootTest(classes = [ReviewDataServiceE2ETest.TestConfig::class], webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
 class ReviewDataServiceE2ETest {
 
@@ -40,12 +45,13 @@ class ReviewDataServiceE2ETest {
      * @SpringBootApplication 없이 테스트에 필요한 컴포넌트만 스캔합니다.
      * JobplanetLoginService(Selenium 의존)는 제외합니다.
      */
-    @SpringBootApplication(
+    @SpringBootConfiguration
+    @EnableAutoConfiguration(
         exclude = [
-            org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration::class,
-            org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration::class,
-            org.springframework.boot.autoconfigure.web.reactive.error.ErrorWebFluxAutoConfiguration::class,
-            org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration::class
+            WebMvcAutoConfiguration::class,
+            WebFluxAutoConfiguration::class,
+            ErrorWebFluxAutoConfiguration::class,
+            WebClientAutoConfiguration::class
         ]
     )
     @EnableJpaRepositories(basePackages = ["com.crawling.planet.domain.repository"])
