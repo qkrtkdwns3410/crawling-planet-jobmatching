@@ -9,7 +9,7 @@ set -euxo pipefail
 
 # --- 시스템 업데이트 ---
 dnf update -y
-dnf install -y curl jq nginx
+dnf install -y --allowerasing curl jq nginx
 
 # --- Java 21 (Amazon Corretto) ---
 dnf install -y java-21-amazon-corretto-devel
