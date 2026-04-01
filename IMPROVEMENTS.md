@@ -4,6 +4,26 @@
 
 ---
 
+## [2026-04-01] 회사 총 평점 미저장 수정 + CI 테스트 의무화
+
+**문제**: 크롤링 후 회사의 averageRating이 null로 남는 경우 발생
+
+**원인**:
+1. fetchLandingHeader()에서 name이 null이면 rateTotalAvg가 있어도 응답 전체를 버림
+2. 에러 발생 시 onErrorResume { Mono.empty() }로 조용히 무시, 로그 없음
+3. 재시도 로직 부재로 일시적 네트워크 오류 시 영구 실패
+
+**해결**:
+1. null 필터 완화: rateTotalAvg 또는 name 중 하나만 있어도 업데이트
+2. 에러 로깅 추가: WARN 레벨로 jobplanetId + 에러 메시지 기록
+3. 재시도 로직 추가: 5xx/IOException에 대해 apiProperties 설정값으로 backoff 재시도
+4. CI 워크플로우(.github/workflows/ci.yml) 신규 생성: push/PR 시 자동 테스트
+5. 단위 테스트 추가: ReviewDataServiceTest, CompanyRatingUpdateServiceTest
+
+**결과**: averageRating null 발생률 감소 + CI에서 테스트 자동 검증
+
+---
+
 ## Public 전환 보안 점검 (2026-03-29)
 
 ### 하드코딩된 시크릿 제거

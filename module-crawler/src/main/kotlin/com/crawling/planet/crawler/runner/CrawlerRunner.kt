@@ -2,6 +2,7 @@ package com.crawling.planet.crawler.runner
 
 import com.crawling.planet.crawler.auth.JobplanetLoginService
 import com.crawling.planet.crawler.config.JobplanetApiProperties
+import com.crawling.planet.crawler.diagnostics.CrawlerDiagnosticsService
 import com.crawling.planet.crawler.service.JobplanetCrawlingService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.ApplicationArguments
@@ -23,7 +24,8 @@ private val logger = KotlinLogging.logger {}
 class CrawlerRunner(
     private val crawlingService: JobplanetCrawlingService,
     private val apiProperties: JobplanetApiProperties,
-    private val loginService: JobplanetLoginService
+    private val loginService: JobplanetLoginService,
+    private val diagnosticsService: CrawlerDiagnosticsService
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -36,6 +38,10 @@ class CrawlerRunner(
         logger.info { "크롤링 범위: ${apiProperties.startCompanyId} ~ ${apiProperties.endCompanyId}" }
         logger.info { "배치 크기: ${apiProperties.batchSize}, 동시 처리: ${apiProperties.concurrency}" }
         logger.info { "=".repeat(60) }
+        diagnosticsService.recordJobStarted(
+            "auto-start",
+            "${apiProperties.startCompanyId}~${apiProperties.endCompanyId}"
+        )
 
         try {
             loginService.loginIfNeeded()
@@ -54,8 +60,14 @@ class CrawlerRunner(
             logger.info { "수집된 리뷰: ${result?.totalReviews ?: 0}" }
             logger.info { "실패한 회사: ${result?.failedCompanies ?: 0}" }
             logger.info { "=".repeat(60) }
+            diagnosticsService.recordJobFinished(
+                "auto-start",
+                true,
+                "companies=${result?.totalCompanies ?: 0}, reviews=${result?.totalReviews ?: 0}, failed=${result?.failedCompanies ?: 0}"
+            )
 
         } catch (e: Exception) {
+            diagnosticsService.recordJobFinished("auto-start", false, e.message)
             logger.error(e) { "크롤러 실행 중 오류 발생: ${e.message}" }
         }
     }

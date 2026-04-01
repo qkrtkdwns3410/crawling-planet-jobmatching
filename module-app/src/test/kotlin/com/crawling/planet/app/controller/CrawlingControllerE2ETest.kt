@@ -26,6 +26,7 @@ import kotlin.test.assertNotNull
  * - GET /api/crawling/status: 회사/리뷰 카운트 검증
  * - POST 요청 인증 필터: Bearer 토큰 없음 → 403
  * - POST 요청 인증 필터: 올바른 Bearer 토큰 → 정상 응답
+ * - GET /api/crawling/diagnostics: 관리자 토큰 필요
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -212,17 +213,48 @@ class CrawlingControllerE2ETest {
     }
 
     @Test
-    fun `인증 필터 - GET 요청은 토큰 없이도 허용된다`() {
-        // given: Authorization 헤더 없이 GET 요청
-        // CrawlingAuthFilter는 GET 메서드를 인증 없이 허용
-
+    fun `인증 필터 - GET status 요청은 토큰 없이도 허용된다`() {
         // when
         val response = restTemplate.getForEntity(
             "/api/crawling/status",
             Map::class.java
         )
 
-        // then: GET은 인증 없이 통과
+        // then: 공개 상태 조회는 인증 없이 통과
         assertEquals(HttpStatus.OK, response.statusCode)
+    }
+
+    @Test
+    fun `진단 조회 - 토큰 없이 요청하면 403을 반환한다`() {
+        val response = restTemplate.getForEntity(
+            "/api/crawling/diagnostics",
+            String::class.java
+        )
+
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `진단 조회 - 올바른 토큰으로 요청하면 진단 정보를 반환한다`() {
+        val headers = HttpHeaders().apply {
+            set("Authorization", "Bearer $adminToken")
+        }
+        val entity = HttpEntity<Void>(headers)
+
+        val response = restTemplate.exchange(
+            "/api/crawling/diagnostics",
+            HttpMethod.GET,
+            entity,
+            Map::class.java
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        val body = response.body
+        assertNotNull(body)
+        assertNotNull(body["serviceStartedAt"])
+        assertNotNull(body["token"])
+        assertNotNull(body["login"])
+        assertNotNull(body["api"])
+        assertNotNull(body["job"])
     }
 }

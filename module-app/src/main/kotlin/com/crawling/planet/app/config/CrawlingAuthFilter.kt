@@ -18,8 +18,8 @@ class CrawlingAuthFilter(
         filterChain: FilterChain
     ) {
         if (request.requestURI.startsWith("/api/crawling/") && adminToken.isNotBlank()) {
-            // GET /status는 인증 없이 허용
-            if (request.method == "GET") {
+            // GET /status만 인증 없이 허용
+            if (request.method == "GET" && request.requestURI == "/api/crawling/status") {
                 filterChain.doFilter(request, response)
                 return
             }

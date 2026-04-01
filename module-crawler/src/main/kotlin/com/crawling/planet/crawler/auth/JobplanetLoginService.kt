@@ -1,5 +1,6 @@
 package com.crawling.planet.crawler.auth
 
+import com.crawling.planet.crawler.diagnostics.CrawlerDiagnosticsService
 import io.github.bonigarcia.wdm.WebDriverManager
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openqa.selenium.By
@@ -15,7 +16,8 @@ private val logger = KotlinLogging.logger {}
 @Service
 class JobplanetLoginService(
     private val authProperties: JobplanetAuthProperties,
-    private val cookieTokenStore: CookieTokenStore
+    private val cookieTokenStore: CookieTokenStore,
+    private val diagnosticsService: CrawlerDiagnosticsService
 ) {
     init {
         WebDriverManager.chromedriver().setup()
@@ -24,6 +26,7 @@ class JobplanetLoginService(
     fun loginIfNeeded(): TokenPair {
         if (cookieTokenStore.hasToken() && !cookieTokenStore.isExpired()) {
             logger.info { "기존 토큰이 유효하여 재사용" }
+            diagnosticsService.recordLoginReuse("loginIfNeeded")
             return cookieTokenStore.get()!!
         }
         return login()
@@ -31,6 +34,7 @@ class JobplanetLoginService(
 
     fun login(): TokenPair {
         logger.info { "잡플래닛 로그인 시작 - email: ${authProperties.email}" }
+        diagnosticsService.recordLoginAttempt("selenium")
 
         val options = ChromeOptions().apply {
             if (authProperties.headless) {
@@ -91,10 +95,12 @@ class JobplanetLoginService(
             )
 
             cookieTokenStore.store(tokenPair)
+            diagnosticsService.recordLoginSuccess("selenium")
             logger.info { "잡플래닛 로그인 성공" }
 
             return tokenPair
         } catch (e: Exception) {
+            diagnosticsService.recordLoginFailure("selenium", e.message)
             logger.error(e) { "잡플래닛 로그인 실패: ${e.message}" }
             throw e
         } finally {

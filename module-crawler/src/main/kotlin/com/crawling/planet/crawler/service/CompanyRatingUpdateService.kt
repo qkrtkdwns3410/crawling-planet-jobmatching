@@ -8,9 +8,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import reactor.util.retry.Retry
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
 
 private val logger = KotlinLogging.logger {}
@@ -57,7 +60,10 @@ class CompanyRatingUpdateService(
                                             )
                                             updated.incrementAndGet()
                                         }
-                                        .doOnError { failed.incrementAndGet() }
+                                        .doOnError { e ->
+                                            failed.incrementAndGet()
+                                            logger.warn { "평점 업데이트 실패 - companyId: ${company.jobplanetId}, error: ${e.message}" }
+                                        }
                                         .doFinally {
                                             val count = processed.incrementAndGet()
                                             if (count % 1000 == 0L) {
@@ -92,7 +98,10 @@ class CompanyRatingUpdateService(
                 }
             }
             .then()
-            .onErrorResume { Mono.empty() }
+            .onErrorResume {
+                logger.warn { "단일 평점 업데이트 실패 - jobplanetId: $jobplanetId, error: ${it.message}" }
+                Mono.empty()
+            }
     }
 
     private fun fetchLandingHeader(jobplanetId: Long): Mono<LandingHeaderData> {
@@ -102,8 +111,15 @@ class CompanyRatingUpdateService(
             .bodyToMono(LandingHeaderResponse::class.java)
             .flatMap { response ->
                 val data = response.data
-                if (data?.name != null) Mono.just(data) else Mono.empty()
+                if (data != null && (data.rateTotalAvg != null || data.name != null)) Mono.just(data) else Mono.empty()
             }
+            .retryWhen(
+                Retry.backoff(apiProperties.maxRetries.toLong(), Duration.ofMillis(apiProperties.retryDelayMs))
+                    .filter { (it is WebClientResponseException && it.statusCode.is5xxServerError) || it is java.io.IOException }
+                    .doBeforeRetry { signal ->
+                        logger.warn { "평점 헤더 재시도 - jobplanetId: $jobplanetId, attempt: ${signal.totalRetries() + 1}" }
+                    }
+            )
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

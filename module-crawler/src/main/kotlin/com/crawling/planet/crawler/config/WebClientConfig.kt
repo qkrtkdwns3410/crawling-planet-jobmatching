@@ -1,6 +1,7 @@
 package com.crawling.planet.crawler.config
 
 import com.crawling.planet.crawler.auth.CookieTokenStore
+import com.crawling.planet.crawler.diagnostics.CrawlerDiagnosticsService
 import io.netty.channel.ChannelOption
 import io.netty.handler.timeout.ReadTimeoutHandler
 import io.netty.handler.timeout.WriteTimeoutHandler
@@ -15,13 +16,15 @@ import org.springframework.web.reactive.function.client.ExchangeStrategies
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 import reactor.netty.http.client.HttpClient
+import java.net.URI
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 @Configuration
 class WebClientConfig(
     private val cookieTokenStore: CookieTokenStore,
-    private val apiProperties: JobplanetApiProperties
+    private val apiProperties: JobplanetApiProperties,
+    private val diagnosticsService: CrawlerDiagnosticsService
 ) {
     companion object {
         private const val BASE_URL = "https://www.jobplanet.co.kr"
@@ -52,6 +55,7 @@ class WebClientConfig(
             .clientConnector(ReactorClientHttpConnector(httpClient))
             .exchangeStrategies(exchangeStrategies)
             .filter(dynamicCookieFilter())
+            .filter(diagnosticsFilter())
             .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "ko,en;q=0.9,en-US;q=0.8")
             .defaultHeader("jp-os-type", "web")
@@ -83,6 +87,22 @@ class WebClientConfig(
         }
     }
 
+    private fun diagnosticsFilter(): ExchangeFilterFunction {
+        return ExchangeFilterFunction { request, next ->
+            val path = request.url().path
+            val companyId = extractCompanyId(request.url())
+            diagnosticsService.recordApiRequest(path, companyId)
+
+            next.exchange(request)
+                .doOnNext { response ->
+                    diagnosticsService.recordApiResponse(path, companyId, response.statusCode().value())
+                }
+                .doOnError { error ->
+                    diagnosticsService.recordTransportError(path, companyId, error.message)
+                }
+        }
+    }
+
     private fun buildCookieString(): String {
         val allCookies = cookieTokenStore.getAllCookies()
         if (allCookies.isNotEmpty()) {
@@ -103,5 +123,16 @@ class WebClientConfig(
         }
 
         return cookies.joinToString("; ")
+    }
+
+    private fun extractCompanyId(uri: URI): Long? {
+        val query = uri.query.orEmpty()
+        val queryMatch = Regex("""(?:^|&)company_id=(\d+)""").find(query)
+        if (queryMatch != null) {
+            return queryMatch.groupValues[1].toLongOrNull()
+        }
+
+        val pathMatch = Regex("""/companies/(\d+)/""").find(uri.path)
+        return pathMatch?.groupValues?.get(1)?.toLongOrNull()
     }
 }
