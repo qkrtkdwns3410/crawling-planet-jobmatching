@@ -15,16 +15,8 @@ dnf install -y curl jq nginx
 dnf install -y java-21-amazon-corretto-devel
 
 # --- EBS 데이터 볼륨 마운트 (PostgreSQL 데이터 영구보존) ---
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-
-# 볼륨 attach (이미 attach된 경우 에러 무시)
-aws ec2 attach-volume \
-  --volume-id "${DATA_VOLUME_ID}" \
-  --instance-id "$INSTANCE_ID" \
-  --device /dev/xvdb \
-  --region "$REGION" 2>/dev/null || true
-
+# Terraform aws_volume_attachment 리소스가 볼륨을 선언적으로 attach함
+# user_data는 디바이스가 나타날 때까지 대기만 담당
 # 디바이스 나타날 때까지 대기 (NVMe 기반 인스턴스는 /dev/nvme1n1)
 DATA_DEVICE=""
 for i in $(seq 1 30); do
@@ -47,9 +39,9 @@ fi
 mkdir -p /var/lib/pgsql
 mount "$DATA_DEVICE" /var/lib/pgsql
 
-# fstab에 UUID로 등록 (재부팅 후 자동 마운트)
+# fstab에 UUID로 등록 (재부팅 후 자동 마운트, 중복 방지)
 DATA_UUID=$(blkid -s UUID -o value "$DATA_DEVICE")
-echo "UUID=$DATA_UUID /var/lib/pgsql ext4 defaults,nofail 0 2" >> /etc/fstab
+grep -q "$DATA_UUID" /etc/fstab || echo "UUID=$DATA_UUID /var/lib/pgsql ext4 defaults,nofail 0 2" >> /etc/fstab
 
 # --- PostgreSQL 16 ---
 dnf install -y postgresql16-server postgresql16
@@ -78,7 +70,8 @@ PGHBA
   sudo -u postgres psql -c "CREATE DATABASE jobplanet OWNER postgres;"
   sudo -u postgres psql -d jobplanet -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 else
-  # 기존 데이터 볼륨 - 바로 시작
+  # 기존 데이터 볼륨 - owner 보정 후 시작 (새 인스턴스의 postgres UID 불일치 방지)
+  chown -R postgres:postgres /var/lib/pgsql
   systemctl enable postgresql
   systemctl start postgresql
 fi

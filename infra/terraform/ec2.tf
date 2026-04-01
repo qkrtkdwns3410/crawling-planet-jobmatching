@@ -82,3 +82,11 @@ resource "aws_eip_association" "app" {
   instance_id   = aws_instance.app.id
   allocation_id = aws_eip.app.id
 }
+
+# PostgreSQL 데이터 볼륨을 EC2에 선언적으로 연결 (교체 시 순서 보장)
+resource "aws_volume_attachment" "pg_data" {
+  device_name  = "/dev/xvdb"
+  volume_id    = aws_ebs_volume.pg_data.id
+  instance_id  = aws_instance.app.id
+  force_detach = true
+}
