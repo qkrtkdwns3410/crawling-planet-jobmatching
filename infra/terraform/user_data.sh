@@ -128,19 +128,6 @@ server {
     server_name crawling-planet.cc _;
 
     location /api/ext/ {
-        if ($request_method = OPTIONS) {
-            add_header Access-Control-Allow-Origin "*" always;
-            add_header Access-Control-Allow-Headers "Content-Type, X-API-Key" always;
-            add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-            add_header Content-Length 0;
-            add_header Content-Type text/plain;
-            return 204;
-        }
-
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Headers "Content-Type, X-API-Key" always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-
         proxy_pass http://127.0.0.1:8081;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

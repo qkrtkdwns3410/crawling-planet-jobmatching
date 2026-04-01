@@ -16,7 +16,8 @@ class CorsConfig {
                     .allowedOriginPatterns(
                         "chrome-extension://*",
                         "http://localhost:*",
-                        "https://www.jobkorea.co.kr"
+                        "https://www.jobkorea.co.kr",
+                        "https://m.jobkorea.co.kr"
                     )
                     .allowedMethods("GET", "OPTIONS")
                     .allowedHeaders("*")
