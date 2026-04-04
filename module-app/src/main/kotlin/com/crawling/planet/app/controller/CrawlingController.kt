@@ -52,6 +52,9 @@ class CrawlingController(
 
     @PostMapping("/range")
     fun crawlRange(@RequestParam startId: Long, @RequestParam endId: Long): ResponseEntity<Map<String, String>> {
+        if (startId <= 0 || endId < startId || endId - startId > 100_000) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "유효하지 않은 범위: startId > 0, endId >= startId, 범위 <= 100,000"))
+        }
         logger.info { "범위 크롤링 요청 - $startId ~ $endId" }
         diagnosticsService.recordJobStarted("range", "$startId~$endId")
         loginService.loginIfNeeded()

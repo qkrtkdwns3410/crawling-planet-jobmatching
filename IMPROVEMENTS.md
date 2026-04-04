@@ -4,6 +4,20 @@
 
 ---
 
+## [2026-04-04] 보안 취약점 수정 — Auth 필터, XSS, 입력 검증
+
+**문제**: 보안 검사에서 CRITICAL/HIGH 취약점 다수 발견
+
+**수정 내역**:
+1. **타이밍 공격 취약점 (CRITICAL)**: `CrawlingAuthFilter`, `ApiKeyFilter`의 `!=` 문자열 비교를 `MessageDigest.isEqual()`로 교체 → constant-time 비교로 timing side-channel 차단
+2. **Auth fail-open (HIGH)**: 환경변수 미설정 시 인증 우회되던 문제 수정. `isNotBlank()` 조건 제거 → 토큰 미설정 시 503 반환 (fail-closed)
+3. **XSS via innerHTML (HIGH)**: Chrome Extension `content.js`의 `innerHTML` 3곳을 `createElement/textContent` DOM API로 교체 → API 응답 데이터의 HTML 인젝션 차단
+4. **입력 검증 누락 (MEDIUM)**: `/api/crawling/range` 엔드포인트에 범위 검증 추가 (startId > 0, endId >= startId, 범위 ≤ 100,000)
+
+**결과**: CRITICAL 2건(타이밍 공격, fail-open), HIGH 1건(XSS), MEDIUM 1건(입력 검증) 해소
+
+---
+
 ## [2026-04-03] Cloudflare TLS 핑거프린팅 우회 — OkHttp 직접 사용
 
 **문제**: 크롤링 API 호출 시 잡플래닛에서 403 FORBIDDEN 연속 발생 (consecutiveFailures 18,000+)

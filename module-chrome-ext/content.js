@@ -208,7 +208,19 @@
     const ratingStr = data.rating ? parseFloat(data.rating).toFixed(1) : "-";
     const industryStr = data.industry || "";
     const reviewCountStr = data.reviewCount ? ` · 리뷰 ${data.reviewCount}개` : "";
-    metaEl.innerHTML = `<span class="jp-rating-large">${ratingStr} ★</span>${industryStr ? ` · <span>${industryStr}</span>` : ""}${reviewCountStr}`;
+    const ratingLargeSpan = document.createElement("span");
+    ratingLargeSpan.className = "jp-rating-large";
+    ratingLargeSpan.textContent = `${ratingStr} ★`;
+    metaEl.appendChild(ratingLargeSpan);
+    if (industryStr) {
+      metaEl.appendChild(document.createTextNode(` · `));
+      const indSpan = document.createElement("span");
+      indSpan.textContent = industryStr;
+      metaEl.appendChild(indSpan);
+    }
+    if (reviewCountStr) {
+      metaEl.appendChild(document.createTextNode(reviewCountStr));
+    }
 
     companyInfo.appendChild(nameEl);
     companyInfo.appendChild(metaEl);
@@ -253,7 +265,10 @@
       link.textContent = "잡플래닛에서 전체 리뷰 보기 →";
       footer.appendChild(link);
     } else {
-      footer.innerHTML = '<span class="jp-powered-by">Powered by 잡플래닛</span>';
+      const poweredBy = document.createElement("span");
+      poweredBy.className = "jp-powered-by";
+      poweredBy.textContent = "Powered by 잡플래닛";
+      footer.appendChild(poweredBy);
     }
     dropdown.appendChild(footer);
 
@@ -268,7 +283,10 @@
     reviewHeader.className = "jp-review-header";
 
     const rating = review.rating ? parseFloat(review.rating).toFixed(1) : "-";
-    reviewHeader.innerHTML = `<span class="jp-review-rating">${rating} ★</span>`;
+    const reviewRatingSpan = document.createElement("span");
+    reviewRatingSpan.className = "jp-review-rating";
+    reviewRatingSpan.textContent = `${rating} ★`;
+    reviewHeader.appendChild(reviewRatingSpan);
 
     if (review.occupationName || review.employStatusName) {
       const meta = document.createElement("span");
