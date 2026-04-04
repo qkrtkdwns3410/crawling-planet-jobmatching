@@ -28,7 +28,7 @@
 - Keep the explanation concise, but detailed enough that the user can understand the end-to-end flow without opening the code immediately.
 
 ---
-<!-- Generated: 2026-04-01 | Updated: 2026-04-01 -->
+<!-- Generated: 2026-04-01 | Updated: 2026-04-05 -->
 
 # crawling-planet-jobmatching
 

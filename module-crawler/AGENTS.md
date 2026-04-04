@@ -62,13 +62,13 @@ JobplanetCrawlingService.crawlRange(startId, endId)
 이를 위해 **access_token 하나가 아닌 전체 쿠키(~35개)**를 Cookie 헤더로 전송해야 함.
 
 ```kotlin
-// WebClientConfig.buildCookieString()
-val allCookies = cookieTokenStore.getAllCookies()
-allCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+// CookieTokenStore.buildCookieString() — WebClientConfig/JobplanetApiService 양쪽에서 호출
+cookieTokenStore.buildCookieString()
+// allCookies가 있으면 전체 조인, 없으면 access_token/refresh_token fallback
 // → "access_token=xxx; refresh_token=yyy; _ga=zzz; ..." (35개)
 ```
 
-401 발생 시 자동 재로그인 후 재시도 (`crawlCompany()` 내 onErrorResume).
+401 발생 시 자동 재로그인 후 `fetchAndSaveCompany()` 재시도 (`crawlCompany()` 내 중첩 onErrorResume).
 
 ### Performance Settings (application-local.yml)
 ```yaml
