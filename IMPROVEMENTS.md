@@ -18,6 +18,7 @@
 
 ---
 
+
 ## [2026-04-03] Cloudflare TLS 핑거프린팅 우회 — OkHttp 직접 사용
 
 **문제**: 크롤링 API 호출 시 잡플래닛에서 403 FORBIDDEN 연속 발생 (consecutiveFailures 18,000+)
