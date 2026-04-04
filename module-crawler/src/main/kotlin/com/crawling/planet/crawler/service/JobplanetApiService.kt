@@ -83,7 +83,7 @@ class JobplanetApiService(
         val request = Request.Builder()
             .url(url)
             .get()
-            .header("Cookie", buildCookieString())
+            .header("Cookie", cookieTokenStore.buildCookieString())
             .header("User-Agent", USER_AGENT)
             .header("Accept", "application/json")
             .header("Accept-Language", "ko,en;q=0.9,en-US;q=0.8")
@@ -117,14 +117,4 @@ class JobplanetApiService(
         }
     }
 
-    private fun buildCookieString(): String {
-        val allCookies = cookieTokenStore.getAllCookies()
-        if (allCookies.isNotEmpty()) {
-            return allCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-        }
-        val cookies = mutableListOf<String>()
-        cookieTokenStore.getAccessToken()?.let { cookies.add("access_token=$it") }
-        cookieTokenStore.getRefreshToken()?.let { cookies.add("refresh_token=$it") }
-        return cookies.joinToString("; ")
-    }
 }
