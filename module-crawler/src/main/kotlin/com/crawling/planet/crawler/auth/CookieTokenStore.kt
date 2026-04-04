@@ -43,6 +43,19 @@ class CookieTokenStore {
 
     fun hasToken(): Boolean = tokenRef.get() != null
 
+    fun buildCookieString(): String {
+        val allCookies = getAllCookies()
+        if (allCookies.isNotEmpty()) {
+            return allCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+        }
+        val cookies = mutableListOf<String>()
+        val accessToken = getAccessToken()
+        if (!accessToken.isNullOrBlank()) cookies.add("access_token=$accessToken")
+        val refreshToken = getRefreshToken()
+        if (!refreshToken.isNullOrBlank()) cookies.add("refresh_token=$refreshToken")
+        return cookies.joinToString("; ")
+    }
+
     fun clear() {
         tokenRef.set(null)
         logger.info { "토큰 초기화 완료" }

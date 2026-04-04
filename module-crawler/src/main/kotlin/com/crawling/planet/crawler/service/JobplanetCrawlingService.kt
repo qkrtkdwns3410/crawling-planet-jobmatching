@@ -80,25 +80,23 @@ class JobplanetCrawlingService(
     }
 
     fun crawlCompany(companyId: Long): Mono<ReviewDataService.SaveResult?> {
-        return jobplanetApiService.getCompanyReviews(companyId, 1)
-            .publishOn(Schedulers.boundedElastic())
-            .map { response -> reviewDataService.saveFromApiResponse(companyId, response) }
-            .flatMap { result ->
-                companyRatingUpdateService.updateSingleCompanyRating(companyId)
-                    .thenReturn(result)
-            }
+        return fetchAndSaveCompany(companyId)
             .onErrorResume { error ->
                 if (error is WebClientResponseException && error.statusCode.value() == 401) {
                     logger.warn { "401 인증 만료 - 토큰 갱신 후 재시도 (companyId: $companyId)" }
                     return@onErrorResume Mono.fromCallable { loginService.login() }
-                        .then(crawlCompanyInternal(companyId))
+                        .then(fetchAndSaveCompany(companyId))
+                        .onErrorResume { retryError ->
+                            logger.error { "토큰 갱신 후에도 실패 - companyId: $companyId, error: ${retryError.message}" }
+                            Mono.empty()
+                        }
                 }
                 logger.warn { "크롤링 실패 - companyId: $companyId, error: ${error.message}" }
                 Mono.empty()
             }
     }
 
-    private fun crawlCompanyInternal(companyId: Long): Mono<ReviewDataService.SaveResult> {
+    private fun fetchAndSaveCompany(companyId: Long): Mono<ReviewDataService.SaveResult> {
         return jobplanetApiService.getCompanyReviews(companyId, 1)
             .publishOn(Schedulers.boundedElastic())
             .map { response -> reviewDataService.saveFromApiResponse(companyId, response) }
@@ -106,14 +104,6 @@ class JobplanetCrawlingService(
                 companyRatingUpdateService.updateSingleCompanyRating(companyId)
                     .thenReturn(result)
             }
-            .onErrorResume { retryError ->
-                logger.error { "토큰 갱신 후에도 실패 - companyId: $companyId, error: ${retryError.message}" }
-                Mono.empty()
-            }
-    }
-
-    fun crawlSingleCompany(companyId: Long): ReviewDataService.SaveResult? {
-        return crawlCompany(companyId).block()
     }
 
     fun crawlReviewsForExistingCompanies(): Mono<CrawlingResult> {

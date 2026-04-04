@@ -78,7 +78,7 @@ class WebClientConfig(
 
     private fun dynamicCookieFilter(): ExchangeFilterFunction {
         return ExchangeFilterFunction.ofRequestProcessor { request ->
-            val cookies = buildCookieString()
+            val cookies = cookieTokenStore.buildCookieString()
             if (cookies.isNotBlank()) {
                 val modified = ClientRequest.from(request)
                     .header(HttpHeaders.COOKIE, cookies)
@@ -111,28 +111,6 @@ class WebClientConfig(
                     diagnosticsService.recordTransportError(path, companyId, error.message)
                 }
         }
-    }
-
-    private fun buildCookieString(): String {
-        val allCookies = cookieTokenStore.getAllCookies()
-        if (allCookies.isNotEmpty()) {
-            return allCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-        }
-
-        // fallback: 개별 토큰만 있는 경우
-        val cookies = mutableListOf<String>()
-
-        val accessToken = cookieTokenStore.getAccessToken()
-        if (!accessToken.isNullOrBlank()) {
-            cookies.add("access_token=$accessToken")
-        }
-
-        val refreshToken = cookieTokenStore.getRefreshToken()
-        if (!refreshToken.isNullOrBlank()) {
-            cookies.add("refresh_token=$refreshToken")
-        }
-
-        return cookies.joinToString("; ")
     }
 
     private fun extractCompanyId(uri: URI): Long? {

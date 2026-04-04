@@ -36,7 +36,7 @@ class CrawlingController(
         logger.info { "단일 회사 크롤링 요청 - companyId: $companyId" }
         diagnosticsService.recordJobStarted("single-company", "companyId=$companyId")
         loginService.loginIfNeeded()
-        val result = crawlingService.crawlSingleCompany(companyId)
+        val result = crawlingService.crawlCompany(companyId).block()
         return if (result != null) {
             diagnosticsService.recordJobFinished(
                 "single-company",
