@@ -57,11 +57,32 @@ jobs:
       - name: Prepare EC2 environment
         run: |
           ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo mkdir -p /opt/crawling-planet && sudo chown ec2-user:ec2-user /opt/crawling-planet"
-          printf '[Unit]\nDescription=Crawling Planet - Crawler App (port 8080)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms512m -Xmx768m -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=CRAWLING_ADMIN_TOKEN=%s\nEnvironment=JOBPLANET_EMAIL=%s\nEnvironment=JOBPLANET_PASSWORD=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$CRAWLING_ADMIN_TOKEN" "$JOBPLANET_EMAIL" "$JOBPLANET_PASSWORD" > /tmp/crawling-planet-app.service
-          printf '[Unit]\nDescription=Crawling Planet - API Server (port 8081)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms256m -Xmx512m -jar /opt/crawling-planet/api.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=API_KEY=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$API_KEY" > /tmp/crawling-planet-api.service
+          printf '[Unit]\nDescription=Crawling Planet - Crawler App (port 8080)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:MaxDirectMemorySize=384m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=CRAWLING_ADMIN_TOKEN=%s\nEnvironment=JOBPLANET_EMAIL=%s\nEnvironment=JOBPLANET_PASSWORD=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$CRAWLING_ADMIN_TOKEN" "$JOBPLANET_EMAIL" "$JOBPLANET_PASSWORD" > /tmp/crawling-planet-app.service
+          printf '[Unit]\nDescription=Crawling Planet - API Server (port 8081)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms128m -Xmx384m -XX:MaxDirectMemorySize=128m -XX:+UseG1GC -jar /opt/crawling-planet/api.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=API_KEY=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$API_KEY" > /tmp/crawling-planet-api.service
           scp -i ~/.ssh/deploy_key /tmp/crawling-planet-app.service $EC2_USER@$EC2_HOST:/tmp/
           scp -i ~/.ssh/deploy_key /tmp/crawling-planet-api.service $EC2_USER@$EC2_HOST:/tmp/
           ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo mv /tmp/crawling-planet-app.service /etc/systemd/system/ && sudo mv /tmp/crawling-planet-api.service /etc/systemd/system/ && sudo systemctl daemon-reload"
+
+      - name: Setup swap and PostgreSQL tuning
+        run: |
+          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST bash << 'EOF'
+            if [ ! -f /swapfile ]; then
+              sudo fallocate -l 1G /swapfile
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+            fi
+            grep -q 'vm.swappiness=10' /etc/sysctl.conf || echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
+            sudo sysctl -p
+
+            PG_CONF=/var/lib/pgsql/data/postgresql.conf
+            if [ -f "$PG_CONF" ]; then
+              sudo sed -i "s/^max_connections = .*/max_connections = 30/" "$PG_CONF"
+              grep -q "^effective_cache_size" "$PG_CONF" || echo "effective_cache_size = 512MB" | sudo tee -a "$PG_CONF"
+              sudo systemctl restart postgresql
+            fi
+          EOF
 
       - name: Deploy module-app
         if: inputs.module == 'all' || inputs.module == 'app'
