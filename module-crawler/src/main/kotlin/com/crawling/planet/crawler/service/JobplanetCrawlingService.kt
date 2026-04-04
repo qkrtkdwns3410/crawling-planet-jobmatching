@@ -30,6 +30,14 @@ class JobplanetCrawlingService(
 
     fun startCrawling(): Mono<CrawlingResult> {
         return crawlRange(apiProperties.startCompanyId, apiProperties.endCompanyId)
+            .flatMap { result ->
+                logger.info { "전체 크롤링 완료, 평점 일괄 업데이트 시작" }
+                companyRatingUpdateService.updateAllRatings()
+                    .doOnSuccess { ratingResult ->
+                        logger.info { "평점 업데이트 완료 - 성공: ${ratingResult.updated}, 실패: ${ratingResult.failed}" }
+                    }
+                    .thenReturn(result)
+            }
     }
 
     fun crawlRange(startId: Long, endId: Long): Mono<CrawlingResult> {

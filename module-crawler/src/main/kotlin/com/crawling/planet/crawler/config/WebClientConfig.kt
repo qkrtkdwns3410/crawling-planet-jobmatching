@@ -5,6 +5,7 @@ import com.crawling.planet.crawler.diagnostics.CrawlerDiagnosticsService
 import io.netty.channel.ChannelOption
 import io.netty.handler.timeout.ReadTimeoutHandler
 import io.netty.handler.timeout.WriteTimeoutHandler
+import okhttp3.OkHttpClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
@@ -32,6 +33,15 @@ class WebClientConfig(
         private const val READ_TIMEOUT_SEC = 30L
         private const val WRITE_TIMEOUT_SEC = 30L
         private const val MAX_IN_MEMORY_SIZE = 16 * 1024 * 1024
+    }
+
+    @Bean
+    fun jobplanetOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(Duration.ofMillis(CONNECT_TIMEOUT_MS.toLong()))
+            .readTimeout(Duration.ofSeconds(READ_TIMEOUT_SEC))
+            .writeTimeout(Duration.ofSeconds(WRITE_TIMEOUT_SEC))
+            .build()
     }
 
     @Bean

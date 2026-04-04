@@ -4,6 +4,27 @@
 
 ---
 
+## [2026-04-03] Cloudflare TLS 핑거프린팅 우회 — OkHttp 직접 사용
+
+**문제**: 크롤링 API 호출 시 잡플래닛에서 403 FORBIDDEN 연속 발생 (consecutiveFailures 18,000+)
+
+**원인**:
+- Cloudflare가 Reactor Netty의 TLS ClientHello cipher suite 구성을 봇으로 탐지
+- `cf-mitigated: challenge` 헤더 확인으로 IP 차단이 아닌 TLS 핑거프린팅 문제임을 확인
+- Elastic IP 교체(43.203.47.167 → 54.116.115.111)로도 해결 안 됨
+
+**해결**:
+1. `JobplanetApiService`를 WebClient 대신 OkHttp 직접 사용으로 전환
+   - `Mono.fromCallable { ... }.subscribeOn(Schedulers.boundedElastic())`으로 리액티브 래핑
+   - 쿠키/헤더를 `Request.Builder`에 직접 추가
+   - `HttpStatusException`(커스텀) 도입으로 상태 코드 기반 retry 필터 유지
+2. `WebClientConfig`에 `OkHttpClient` Bean 추가 (`jobplanetOkHttpClient`)
+3. WebClient(Netty)는 `CompanyRatingUpdateService`용으로 유지
+
+**결과**: 200 응답 정상 수신, consecutiveFailures 0, 크롤링 재개
+
+---
+
 ## [2026-04-01] 회사 총 평점 미저장 수정 + CI 테스트 의무화
 
 **문제**: 크롤링 후 회사의 averageRating이 null로 남는 경우 발생
