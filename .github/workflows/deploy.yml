@@ -20,6 +20,8 @@ env:
   DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
   API_KEY: ${{ secrets.API_KEY }}
   CRAWLING_ADMIN_TOKEN: ${{ secrets.CRAWLING_ADMIN_TOKEN }}
+  JOBPLANET_EMAIL: ${{ secrets.JOBPLANET_EMAIL }}
+  JOBPLANET_PASSWORD: ${{ secrets.JOBPLANET_PASSWORD }}
 
 jobs:
   build:
@@ -55,7 +57,7 @@ jobs:
       - name: Prepare EC2 environment
         run: |
           ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo mkdir -p /opt/crawling-planet && sudo chown ec2-user:ec2-user /opt/crawling-planet"
-          printf '[Unit]\nDescription=Crawling Planet - Crawler App (port 8080)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms512m -Xmx768m -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=CRAWLING_ADMIN_TOKEN=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$CRAWLING_ADMIN_TOKEN" > /tmp/crawling-planet-app.service
+          printf '[Unit]\nDescription=Crawling Planet - Crawler App (port 8080)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms512m -Xmx768m -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=CRAWLING_ADMIN_TOKEN=%s\nEnvironment=JOBPLANET_EMAIL=%s\nEnvironment=JOBPLANET_PASSWORD=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$CRAWLING_ADMIN_TOKEN" "$JOBPLANET_EMAIL" "$JOBPLANET_PASSWORD" > /tmp/crawling-planet-app.service
           printf '[Unit]\nDescription=Crawling Planet - API Server (port 8081)\nAfter=postgresql.service network.target\nRequires=postgresql.service\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/crawling-planet\nExecStart=/usr/bin/java -Xms256m -Xmx512m -jar /opt/crawling-planet/api.jar --spring.profiles.active=prod\nRestart=on-failure\nRestartSec=10\nEnvironment=DB_USERNAME=postgres\nEnvironment=DB_PASSWORD=%s\nEnvironment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jobplanet\nEnvironment=API_KEY=%s\n\n[Install]\nWantedBy=multi-user.target\n' "$DB_PASSWORD" "$API_KEY" > /tmp/crawling-planet-api.service
           scp -i ~/.ssh/deploy_key /tmp/crawling-planet-app.service $EC2_USER@$EC2_HOST:/tmp/
           scp -i ~/.ssh/deploy_key /tmp/crawling-planet-api.service $EC2_USER@$EC2_HOST:/tmp/
