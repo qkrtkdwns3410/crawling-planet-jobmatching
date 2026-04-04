@@ -4,6 +4,41 @@
 
 ---
 
+## [2026-04-05] deploy.yml 환경변수 누락 수정
+
+**문제**: 재배포 시마다 `${JOBPLANET_EMAIL}` 리터럴로 로그인 실패
+
+**원인**: `deploy.yml`의 systemd 서비스 파일 생성 printf에 `JOBPLANET_EMAIL`, `JOBPLANET_PASSWORD`가 빠져 있었음. 배포할 때마다 서비스 파일이 재생성되면서 덮어써짐.
+
+**해결**:
+- GitHub Secret에 `JOBPLANET_EMAIL`, `JOBPLANET_PASSWORD` 추가
+- `deploy.yml` env 블록 + printf에 두 변수 포함
+
+**결과**: 재배포 후에도 환경변수 유지, 로그인 정상화
+
+---
+
+## [2026-04-04] t3.small 메모리 최적화
+
+**문제**: Chrome(Selenium) 실행 시 메모리 44MB만 남아 OOM으로 크롤링 불가
+
+**원인**:
+- JVM Xms가 512m/256m으로 설정되어 앱 시작 시 과도한 메모리 선점
+- HikariCP 커넥션 풀 50개 → 각 커넥션당 메모리 소비
+- 스왑 없음 (t3.small 기본 설정)
+
+**해결**:
+1. module-app JVM: `-Xms512m` → `-Xms256m`, G1GC 적용, `-XX:MaxDirectMemorySize=384m`
+2. module-api JVM: `-Xms256m -Xmx512m` → `-Xms128m -Xmx384m`, G1GC 적용
+3. HikariCP: `maximum-pool-size` 50→20, `minimum-idle` 10→3 (`application-prod.yml`)
+4. EC2에 2GB 스왑 추가 (`/swapfile`) + `vm.swappiness=10`
+5. PostgreSQL `max_connections`=30, `effective_cache_size`=512MB
+6. `deploy.yml` + `user_data.sh` 모두 반영
+
+**결과**: available 메모리 확보, Chrome 정상 기동, 크롤링 재개
+
+---
+
 ## [2026-04-04] 보안 취약점 수정 — Auth 필터, XSS, 입력 검증
 
 **문제**: 보안 검사에서 CRITICAL/HIGH 취약점 다수 발견

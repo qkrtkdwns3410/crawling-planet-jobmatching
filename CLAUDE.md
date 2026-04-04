@@ -36,7 +36,7 @@ module-app → module-crawler → module-domain
 ```
 
 - **module-app**: Spring Boot 진입점. REST 컨트롤러(`/api/crawling/*`, `/api/ext/*`). 크롤링 작업은 Reactor `subscribe()`로 백그라운드 실행.
-- **module-crawler**: 크롤링 핵심 로직. Reactor(Flux/Mono) 기반 비동기 처리, 설정 가능한 concurrency/delay. Selenium으로 잡플래닛 로그인 후 쿠키 기반 인증. 401 발생 시 자동 토큰 갱신.
+- **module-crawler**: 크롤링 핵심 로직. Reactor(Flux/Mono) 기반 비동기 처리, 설정 가능한 concurrency/delay. Selenium으로 잡플래닛 로그인 후 쿠키 기반 인증. 리뷰 API는 OkHttp(Cloudflare TLS 우회), 평점 API는 WebClient. 401 발생 시 자동 토큰 갱신.
 - **module-domain**: JPA 엔티티(`Company`, `Review`, `CrawlingProgress`, `CrawlingErrorLog`), Repository, DTO(`JobplanetApiResponse` 등). `kotlin-jpa` 플러그인으로 엔티티 allOpen 처리.
 - **module-http-client**: 커스텀 선언적 HTTP 클라이언트 프레임워크. `@WebClientInterface` + `@EnableWebClients`로 인터페이스 기반 WebClient 프록시를 자동 생성. Feign과 유사한 패턴이지만 WebFlux 기반.
 - **module-chrome-ext**: 잡코리아 페이지에서 잡플래닛 리뷰를 보여주는 Chrome Extension (Manifest V3).
@@ -66,7 +66,7 @@ module-app → module-crawler → module-domain
 
 ## 인프라 정보
 
-- **AWS**: EC2 Spot t3.small (서울 리전), Terraform 관리 (`infra/terraform/`)
+- **AWS**: EC2 Spot t3.small (서울 리전), Terraform 관리 (`infra/terraform/`), 2GB 스왑 추가
 - **도메인**: `crawling-planet.cc` (Cloudflare DNS + Proxy + Flexible SSL)
 - **Nginx**: 리버스 프록시, API Key 인증, CORS, IP 제한
 - **배포**: GitHub Actions 수동 트리거 (`workflow_dispatch`) 또는 SCP + systemd restart
@@ -84,5 +84,6 @@ module-app → module-crawler → module-domain
 - Spring Boot 3.4.1 (Web + WebFlux + Data JPA)
 - PostgreSQL 16 (pg_trgm 확장)
 - Reactor (Flux/Mono) for async crawling
+- OkHttp 4.12.0 for Cloudflare TLS bypass (JobplanetApiService)
 - Selenium + WebDriverManager for browser-based auth
 - kotlin-logging (oshai)

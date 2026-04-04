@@ -59,6 +59,26 @@
 
 ---
 
+## v0.4.0 (2026-04-04)
+
+### 기능 개선
+- **Cloudflare TLS 우회**: JobplanetApiService를 WebClient(Reactor Netty)에서 OkHttp로 전환 — Cloudflare TLS 핑거프린팅 차단(403) 해소, 크롤링 재개
+- **크롤링 완료 후 평점 자동 업데이트**: `startCrawling()` 완료 시 `updateAllRatings()` 자동 체이닝
+
+### 보안 수정
+- Auth 필터 타이밍 공격 취약점 수정: `!=` → `MessageDigest.isEqual()` (constant-time 비교)
+- Auth 필터 fail-open → fail-closed: 토큰 미설정 시 503 반환
+- Chrome Extension `content.js` innerHTML XSS → DOM API 전환
+- `/api/crawling/range` 입력 범위 검증 추가 (≤ 100,000)
+
+### 인프라/운영
+- EC2 t3.small 메모리 최적화: JVM Xms 축소, G1GC, HikariCP 50→20, 2GB 스왑
+- PostgreSQL max_connections=30, effective_cache_size=512MB
+- deploy.yml JOBPLANET_EMAIL/PASSWORD 환경변수 누락 수정 (재배포 시 로그인 실패 방지)
+- GitHub Secret EC2_HOST 신규 IP(54.116.115.111)로 업데이트
+
+---
+
 ## Changelog
 
 ### 2026-03-28
