@@ -11,6 +11,17 @@ set -euxo pipefail
 dnf update -y
 dnf install -y --allowerasing curl jq nginx
 
+# --- Swap (OOM 안전망, 1GB) ---
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+echo 'vm.swappiness=10' >> /etc/sysctl.conf
+sysctl -p
+
 # --- Java 21 (Amazon Corretto) ---
 dnf install -y java-21-amazon-corretto-devel
 
@@ -53,6 +64,8 @@ if [ ! -f /var/lib/pgsql/data/PG_VERSION ]; then
 
   # PostgreSQL 설정: localhost만 리슨
   sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/" /var/lib/pgsql/data/postgresql.conf
+  sed -i "s/#max_connections = 100/max_connections = 30/" /var/lib/pgsql/data/postgresql.conf
+  echo "effective_cache_size = 512MB" >> /var/lib/pgsql/data/postgresql.conf
 
   # pg_hba.conf: local 인증
   cat > /var/lib/pgsql/data/pg_hba.conf << 'PGHBA'
@@ -72,6 +85,10 @@ PGHBA
 else
   # 기존 데이터 볼륨 - owner 보정 후 시작 (새 인스턴스의 postgres UID 불일치 방지)
   chown -R postgres:postgres /var/lib/pgsql
+  grep -q "^max_connections = 30" /var/lib/pgsql/data/postgresql.conf || \
+    sed -i "s/^max_connections = .*/max_connections = 30/" /var/lib/pgsql/data/postgresql.conf
+  grep -q "^effective_cache_size" /var/lib/pgsql/data/postgresql.conf || \
+    echo "effective_cache_size = 512MB" >> /var/lib/pgsql/data/postgresql.conf
   systemctl enable postgresql
   systemctl start postgresql
 fi
@@ -173,7 +190,7 @@ Type=simple
 User=ec2-user
 WorkingDirectory=/opt/crawling-planet
 EnvironmentFile=/etc/crawling-planet/app.env
-ExecStart=/usr/bin/java -Xms512m -Xmx768m -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:MaxDirectMemorySize=384m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar /opt/crawling-planet/app.jar --spring.profiles.active=prod
 Restart=on-failure
 RestartSec=10
 SyslogIdentifier=crawling-planet-app
@@ -196,7 +213,7 @@ Type=simple
 User=ec2-user
 WorkingDirectory=/opt/crawling-planet
 EnvironmentFile=/etc/crawling-planet/api.env
-ExecStart=/usr/bin/java -Xms256m -Xmx512m -jar /opt/crawling-planet/api.jar --spring.profiles.active=prod
+ExecStart=/usr/bin/java -Xms128m -Xmx384m -XX:MaxDirectMemorySize=128m -XX:+UseG1GC -jar /opt/crawling-planet/api.jar --spring.profiles.active=prod
 Restart=on-failure
 RestartSec=10
 SyslogIdentifier=crawling-planet-api
