@@ -99,21 +99,18 @@ jobs:
       - name: Update Nginx /health/api location
         if: inputs.module == 'all' || inputs.module == 'api'
         run: |
-          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST bash << 'EOF'
-            NGINX_CONF=/etc/nginx/conf.d/crawling-planet.conf
-            if ! sudo grep -q 'location = /health/api' "$NGINX_CONF"; then
-              sudo python3 -c "
-conf = open('/etc/nginx/conf.d/crawling-planet.conf').read()
-insert = '    location = /health/api {\n        proxy_pass http://127.0.0.1:8081/health;\n    }\n\n'
-conf = conf.replace('    location = /health/nginx', insert + '    location = /health/nginx')
-open('/etc/nginx/conf.d/crawling-planet.conf', 'w').write(conf)
-"
-              sudo nginx -t && sudo systemctl reload nginx
-              echo "Nginx /health/api configured"
-            else
-              echo "Nginx /health/api already exists, skipping"
-            fi
-          EOF
+          cat > /tmp/update_nginx.py << 'PYEOF'
+          conf = open('/etc/nginx/conf.d/crawling-planet.conf').read()
+          if 'location = /health/api' not in conf:
+              insert = '    location = /health/api {\n        proxy_pass http://127.0.0.1:8081/health;\n    }\n\n'
+              conf = conf.replace('    location = /health/nginx', insert + '    location = /health/nginx')
+              open('/etc/nginx/conf.d/crawling-planet.conf', 'w').write(conf)
+              print('Nginx /health/api configured')
+          else:
+              print('Nginx /health/api already exists, skipping')
+          PYEOF
+          scp -i ~/.ssh/deploy_key /tmp/update_nginx.py $EC2_USER@$EC2_HOST:/tmp/update_nginx.py
+          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST "sudo python3 /tmp/update_nginx.py && sudo nginx -t && sudo systemctl reload nginx"
 
       - name: Health check
         run: |
