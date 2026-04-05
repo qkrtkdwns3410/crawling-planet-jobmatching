@@ -210,7 +210,13 @@
     const reviewCountStr = data.reviewCount ? ` · 리뷰 ${data.reviewCount}개` : "";
     const ratingLargeSpan = document.createElement("span");
     ratingLargeSpan.className = "jp-rating-large";
-    ratingLargeSpan.textContent = `${ratingStr} ★`;
+    if (data.rating) {
+      const filled = Math.min(Math.max(Math.round(parseFloat(ratingStr)), 0), 5);
+      const stars = "★".repeat(filled) + "☆".repeat(5 - filled);
+      ratingLargeSpan.textContent = `${ratingStr} ${stars}`;
+    } else {
+      ratingLargeSpan.textContent = `${ratingStr} ★`;
+    }
     metaEl.appendChild(ratingLargeSpan);
     if (industryStr) {
       metaEl.appendChild(document.createTextNode(` · `));
