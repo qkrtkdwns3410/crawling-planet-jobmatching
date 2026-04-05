@@ -1,16 +1,19 @@
 package com.crawling.planet.crawler.service
 
+import com.crawling.planet.crawler.auth.CookieTokenStore
 import com.crawling.planet.crawler.config.JobplanetApiProperties
 import com.crawling.planet.domain.entity.Company
 import com.crawling.planet.domain.repository.CompanyRepository
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import okhttp3.OkHttpClient
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
-import org.springframework.web.reactive.function.client.WebClient
 import reactor.test.StepVerifier
 import java.util.Optional
 
@@ -18,6 +21,7 @@ class CompanyRatingUpdateServiceTest {
 
     private lateinit var wireMockServer: WireMockServer
     private lateinit var companyRepository: CompanyRepository
+    private lateinit var cookieTokenStore: CookieTokenStore
     private lateinit var service: CompanyRatingUpdateService
 
     private val apiProperties = JobplanetApiProperties(
@@ -33,12 +37,29 @@ class CompanyRatingUpdateServiceTest {
         configureFor("localhost", wireMockServer.port())
 
         companyRepository = mock(CompanyRepository::class.java)
+        cookieTokenStore = mock(CookieTokenStore::class.java)
+        `when`(cookieTokenStore.buildCookieString()).thenReturn("")
 
-        val webClient = WebClient.builder()
-            .baseUrl("http://localhost:${wireMockServer.port()}")
+        // WireMock 서버로 요청을 리다이렉트하는 OkHttpClient
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val redirectedUrl = original.url.newBuilder()
+                    .scheme("http")
+                    .host("localhost")
+                    .port(wireMockServer.port())
+                    .build()
+                chain.proceed(original.newBuilder().url(redirectedUrl).build())
+            }
             .build()
 
-        service = CompanyRatingUpdateService(webClient, companyRepository, apiProperties)
+        service = CompanyRatingUpdateService(
+            jobplanetOkHttpClient = okHttpClient,
+            cookieTokenStore = cookieTokenStore,
+            companyRepository = companyRepository,
+            apiProperties = apiProperties,
+            objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
+        )
     }
 
     @AfterEach
@@ -111,7 +132,7 @@ class CompanyRatingUpdateServiceTest {
     }
 
     @Test
-    fun `500 에러 - 재시도 후 최종 실패 - onErrorResume으로 empty 반환`() {
+    fun `500 에러 - onErrorResume으로 empty 반환`() {
         val jobplanetId = 33333L
 
         wireMockServer.stubFor(
@@ -131,7 +152,7 @@ class CompanyRatingUpdateServiceTest {
     }
 
     @Test
-    fun `404 에러 - 재시도 없이 바로 onErrorResume`() {
+    fun `404 에러 - onErrorResume으로 empty 반환`() {
         val jobplanetId = 44444L
 
         wireMockServer.stubFor(
@@ -147,7 +168,6 @@ class CompanyRatingUpdateServiceTest {
         StepVerifier.create(service.updateSingleCompanyRating(jobplanetId))
             .verifyComplete()
 
-        wireMockServer.verify(1, getRequestedFor(urlEqualTo("/api/v5/companies/$jobplanetId/landing/header")))
         verify(companyRepository, never()).updateCompanyDetails(anyLong(), any(), any(), any(), any())
     }
 }

@@ -36,4 +36,5 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.wiremock:wiremock-standalone:3.4.2")
+    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 }
