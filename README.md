@@ -1,5 +1,7 @@
 # Crawling Planet - Jobplanet Review Matching
 
+[![Server Status](https://img.shields.io/website?url=https%3A%2F%2Fcrawling-planet.cc%2Fapi%2Fext%2Fcompany%2Fsearch&label=API%20Server&up_message=online&down_message=offline)](https://crawling-planet.cc)
+
 > **[크롬 확장 프로그램 설치 방법 (HOWTO)](HOWTO.md)** - 확장 프로그램 zip 설치 가이드
 
 > **[Release Notes (v1.0.0)](RELEASE.md)** - 2026-03-28
