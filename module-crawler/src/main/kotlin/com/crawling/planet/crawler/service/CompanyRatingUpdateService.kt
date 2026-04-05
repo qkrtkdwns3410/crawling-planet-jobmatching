@@ -1,28 +1,31 @@
 package com.crawling.planet.crawler.service
 
+import com.crawling.planet.crawler.auth.CookieTokenStore
 import com.crawling.planet.crawler.config.JobplanetApiProperties
 import com.crawling.planet.domain.repository.CompanyRepository
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
-import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
-import reactor.util.retry.Retry
-import java.time.Duration
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 
 private val logger = KotlinLogging.logger {}
 
 @Service
 class CompanyRatingUpdateService(
-    private val jobplanetWebClient: WebClient,
+    private val jobplanetOkHttpClient: OkHttpClient,
+    private val cookieTokenStore: CookieTokenStore,
     private val companyRepository: CompanyRepository,
-    private val apiProperties: JobplanetApiProperties
+    private val apiProperties: JobplanetApiProperties,
+    private val objectMapper: ObjectMapper
 ) {
     data class UpdateResult(val updated: Long, val failed: Long)
 
@@ -105,21 +108,36 @@ class CompanyRatingUpdateService(
     }
 
     private fun fetchLandingHeader(jobplanetId: Long): Mono<LandingHeaderData> {
-        return jobplanetWebClient.get()
-            .uri("/api/v5/companies/$jobplanetId/landing/header")
-            .retrieve()
-            .bodyToMono(LandingHeaderResponse::class.java)
+        return Mono.fromCallable {
+            val url = "https://www.jobplanet.co.kr/api/v5/companies/$jobplanetId/landing/header"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("Cookie", cookieTokenStore.buildCookieString())
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
+                .header("Accept", "application/json")
+                .header("Accept-Language", "ko,en;q=0.9,en-US;q=0.8")
+                .header("jp-os-type", "web")
+                .header("jp-ssr-auth", apiProperties.ssrAuth)
+                .header("sec-ch-ua", "\"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"")
+                .header("sec-ch-ua-mobile", "?0")
+                .header("sec-ch-ua-platform", "\"Windows\"")
+                .header("sec-fetch-dest", "empty")
+                .header("sec-fetch-mode", "cors")
+                .header("sec-fetch-site", "same-origin")
+                .build()
+
+            jobplanetOkHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                val body = response.body?.string() ?: throw IOException("Empty body")
+                objectMapper.readValue(body, LandingHeaderResponse::class.java)
+            }
+        }
+            .subscribeOn(Schedulers.boundedElastic())
             .flatMap { response ->
                 val data = response.data
                 if (data != null && (data.rateTotalAvg != null || data.name != null)) Mono.just(data) else Mono.empty()
             }
-            .retryWhen(
-                Retry.backoff(apiProperties.maxRetries.toLong(), Duration.ofMillis(apiProperties.retryDelayMs))
-                    .filter { (it is WebClientResponseException && it.statusCode.is5xxServerError) || it is java.io.IOException }
-                    .doBeforeRetry { signal ->
-                        logger.warn { "평점 헤더 재시도 - jobplanetId: $jobplanetId, attempt: ${signal.totalRetries() + 1}" }
-                    }
-            )
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
