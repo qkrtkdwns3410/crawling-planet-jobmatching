@@ -166,6 +166,10 @@ server {
         proxy_pass http://127.0.0.1:8080/api/crawling/status;
     }
 
+    location = /health/api {
+        proxy_pass http://127.0.0.1:8081/health;
+    }
+
     location = /health/nginx {
         default_type text/plain;
         return 200 "ok\n";

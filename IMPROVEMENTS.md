@@ -4,6 +4,23 @@
 
 ---
 
+## [2026-04-05] shields.io 뱃지 항상 offline 표시 수정
+
+**문제**: GitHub README의 서버 상태 뱃지가 API 서버 정상 운영 중에도 항상 "offline" 표시
+
+**원인**: 뱃지 체크 URL이 `/api/ext/company/search`를 가리키고 있었으나, `ApiKeyFilter`가 `/api/ext/**` 경로에 `X-API-Key` 헤더 없으면 403 Forbidden 반환. shields.io는 커스텀 헤더를 추가할 수 없어 항상 403을 받아 "offline" 표시.
+
+**해결**:
+- `module-api`에 `GET /health` 엔드포인트 추가 (`HealthController.kt`) — API Key 불필요, 200 OK 반환
+- Nginx에 `/health/api` location 추가 → `proxy_pass http://127.0.0.1:8081/health` (기존 `/health/app`, `/health/nginx` 패턴과 일관성 유지)
+- README 뱃지 URL을 `/health/api`로 변경
+
+**결과**: shields.io가 `/health/api`로 200 OK를 받아 "online" 정상 표시. API 서버 다운 시 502/503으로 "offline" 표시.
+
+> **EC2 수동 반영 필요**: `/etc/nginx/conf.d/crawling-planet.conf`에 location 블록 추가 후 `nginx -t && sudo systemctl reload nginx`
+
+---
+
 ## [2026-04-05] deploy.yml 환경변수 누락 수정
 
 **문제**: 재배포 시마다 `${JOBPLANET_EMAIL}` 리터럴로 로그인 실패
